@@ -1,69 +1,38 @@
 <!doctype html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta
-      name="description"
-      content="HTML, CSS, JavaScriptだけで作ったVercel向け静的サイトです。"
-    >
-    <title>Simple Vercel HTML</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
-  </head>
-  <body>
-    <main class="site-shell">
-      <section class="hero" aria-labelledby="page-title">
-        <p class="eyebrow">Static site on Vercel</p>
-        <h1 id="page-title">Simple Vercel HTML</h1>
-        <p class="lead">
-          HTML、CSS、JavaScriptだけで動く静的サイトのスターターです。
-        </p>
-        <div class="actions">
-          <a class="button primary" href="https://vercel.com/new" rel="noreferrer" target="_blank">
-            Vercelでデプロイ
-          </a>
-          <a class="button secondary" href="https://github.com/" rel="noreferrer" target="_blank">
-            GitHubへ
-          </a>
-        </div>
-      </section>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>To Do リスト</title>
+	<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+	<div class="app">
+		<header>
+			<h1>To Do リスト</h1>
+		</header>
 
-      <section class="game-panel" aria-labelledby="game-title">
-        <div class="game-header">
-          <div>
-            <p class="eyebrow">簡単なゲーム</p>
-            <h2 id="game-title">ターゲットキャッチゲーム</h2>
-            <p class="lead">スタートを押して、動くターゲットをクリックしてスコアを競おう。</p>
-          </div>
-          <div class="game-controls">
-            <div class="game-stats">
-              <div><span class="label">Score</span><strong id="score">0</strong></div>
-              <div><span class="label">Time</span><strong id="timer">30</strong>s</div>
-            </div>
-            <button id="start-game" class="button primary">スタート</button>
-          </div>
-        </div>
-        <div class="game-board" id="game-board" aria-label="ゲームエリア">
-          <div class="target" id="target" hidden></div>
-        </div>
-      </section>
+		<section class="todo-app">
+			<form id="todo-form">
+				<input id="todo-input" placeholder="新しいタスクを追加..." autocomplete="off">
+				<button type="submit">追加</button>
+			</form>
 
-      <section class="status-panel" aria-label="サイト状態">
-        <div>
-          <span class="label">Mode</span>
-          <strong>Static</strong>
-        </div>
-        <div>
-          <span class="label">Build</span>
-          <strong>None</strong>
-        </div>
-        <div>
-          <span class="label">Runtime</span>
-          <strong>Browser JS</strong>
-        </div>
-      </section>
-    </main>
+			<ul id="todo-list"></ul>
 
-    <script src="assets/js/main.js" defer></script>
-  </body>
+			<div class="controls">
+				<span id="count">0 件</span>
+				<div class="filters">
+					<button data-filter="all" class="filter active">すべて</button>
+					<button data-filter="active" class="filter">未完了</button>
+					<button data-filter="completed" class="filter">完了</button>
+				</div>
+				<button id="clear-completed">完了を削除</button>
+			</div>
+		</section>
+	</div>
+
+	<script src="assets/js/main.js"></script>
+</body>
 </html>
+

@@ -1,94 +1,72 @@
-const statusPanel = document.querySelector(".status-panel");
-const scoreDisplay = document.getElementById("score");
-const timerDisplay = document.getElementById("timer");
-const startButton = document.getElementById("start-game");
-const gameBoard = document.getElementById("game-board");
-const target = document.getElementById("target");
+const STORAGE_KEY = 'todos-v1'
+let todos = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+let filter = 'all'
 
-let score = 0;
-let timeLeft = 30;
-let timerId = null;
-let moveId = null;
+const $form = document.getElementById('todo-form')
+const $input = document.getElementById('todo-input')
+const $list = document.getElementById('todo-list')
+const $count = document.getElementById('count')
+const $filters = document.querySelectorAll('.filter')
+const $clear = document.getElementById('clear-completed')
 
-function updateDisplay() {
-  if (scoreDisplay) scoreDisplay.textContent = String(score);
-  if (timerDisplay) timerDisplay.textContent = String(timeLeft);
+function save(){localStorage.setItem(STORAGE_KEY, JSON.stringify(todos))}
+
+function render(){
+	$list.innerHTML = ''
+	const shown = todos.filter(t => filter === 'all' || (filter === 'active' && !t.done) || (filter === 'completed' && t.done))
+	shown.forEach(t => {
+		const li = document.createElement('li')
+		const left = document.createElement('div')
+		left.className = 'todo-left'
+		const cb = document.createElement('input')
+		cb.type = 'checkbox'
+		cb.checked = t.done
+		cb.addEventListener('change', ()=>{toggleDone(t.id)})
+		const span = document.createElement('span')
+		span.className = 'todo-text' + (t.done? ' completed':'')
+		span.textContent = t.text
+		left.appendChild(cb)
+		left.appendChild(span)
+
+		const del = document.createElement('button')
+		del.textContent = '削除'
+		del.style.background = '#e74c3c'
+		del.addEventListener('click', ()=>{removeTodo(t.id)})
+
+		li.appendChild(left)
+		li.appendChild(del)
+		$list.appendChild(li)
+	})
+	const remaining = todos.filter(t=>!t.done).length
+	$count.textContent = `${remaining} 件`
 }
 
-function randomPosition() {
-  if (!gameBoard) return { x: 0, y: 0 };
-  const rect = gameBoard.getBoundingClientRect();
-  const size = 48;
-  const x = Math.random() * Math.max(0, rect.width - size);
-  const y = Math.random() * Math.max(0, rect.height - size);
-  return { x, y };
+function addTodo(text){
+	if(!text.trim()) return
+	todos.push({id:Date.now(),text: text.trim(),done:false})
+	save(); render()
 }
 
-function moveTarget() {
-  if (!target || !gameBoard) return;
-  if (timeLeft <= 0) {
-    target.hidden = true;
-    return;
-  }
-  const { x, y } = randomPosition();
-  target.style.left = `${x}px`;
-  target.style.top = `${y}px`;
-  target.hidden = false;
-  moveId = window.setTimeout(moveTarget, 900);
+function toggleDone(id){
+	todos = todos.map(t => t.id===id? {...t,done:!t.done}: t)
+	save(); render()
 }
 
-function endGame() {
-  if (timerId !== null) {
-    window.clearInterval(timerId);
-    timerId = null;
-  }
-  if (moveId !== null) {
-    window.clearTimeout(moveId);
-    moveId = null;
-  }
-  if (target) target.hidden = true;
-  if (startButton) {
-    startButton.disabled = false;
-    startButton.textContent = "リスタート";
-  }
+function removeTodo(id){
+	todos = todos.filter(t=>t.id!==id)
+	save(); render()
 }
 
-function tick() {
-  if (timeLeft <= 0) {
-    endGame();
-    return;
-  }
-  timeLeft -= 1;
-  updateDisplay();
-  if (timeLeft <= 0) {
-    endGame();
-  }
+function clearCompleted(){
+	todos = todos.filter(t=>!t.done)
+	save(); render()
 }
 
-function startGame() {
-  if (!startButton || !target || !gameBoard) return;
-  score = 0;
-  timeLeft = 30;
-  updateDisplay();
-  startButton.disabled = true;
-  startButton.textContent = "プレイ中...";
-  moveTarget();
-  timerId = window.setInterval(tick, 1000);
-}
+function setFilter(f){filter = f; $filters.forEach(b=>b.classList.toggle('active', b.dataset.filter===f)); render()}
 
-if (target) {
-  target.addEventListener("click", () => {
-    score += 1;
-    updateDisplay();
-    target.classList.add("pop");
-    window.setTimeout(() => target.classList.remove("pop"), 120);
-  });
-}
+$form.addEventListener('submit', e=>{e.preventDefault(); addTodo($input.value); $input.value='';})
+$filters.forEach(b=>b.addEventListener('click', ()=>setFilter(b.dataset.filter)))
+$clear.addEventListener('click', clearCompleted)
 
-if (startButton) {
-  startButton.addEventListener("click", startGame);
-}
+render()
 
-if (statusPanel) {
-  statusPanel.dataset.ready = "true";
-}
