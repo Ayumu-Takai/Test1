@@ -51,7 +51,7 @@ function buildLevel(){
 const player = {
 	x: 60, y: 360, w: 28, h: 40,
 	vx:0, vy:0,
-	speed:3.2, jump:14, onGround:false
+	speed:3.2, jump:18, onGround:false
 }
 
 let cameraX = 0
