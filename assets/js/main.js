@@ -11,6 +11,8 @@ const statusEl = document.getElementById('status')
 const leftBtn = document.getElementById('left-btn')
 const upBtn = document.getElementById('up-btn')
 const rightBtn = document.getElementById('right-btn')
+const goalScreenEl = document.getElementById('goal-screen')
+const retryBtn = document.getElementById('retry-btn')
 
 const GRAVITY = 0.8
 
@@ -19,7 +21,8 @@ let level = {
 	platforms: [],
 	pipes: [],
 	obstacles: [],
-	goal: {x: 2700, y: 340, w: 40, h: 80}
+	enemies: [],
+	goal: {x: 2700, y: 80, w: 40, h: 340}
 }
 
 function buildLevel(){
@@ -49,22 +52,33 @@ function buildLevel(){
 		{x:1080,y:400,w:40,h:20},
 		{x:1800,y:400,w:40,h:20}
 	]
+
+	// enemies (koopa-like)
+	level.enemies = [
+		{x:500,y:300,w:30,h:30,vx:-2,dir:-1},
+		{x:1200,y:320,w:30,h:30,vx:2.5,dir:1},
+		{x:1900,y:280,w:30,h:30,vx:-2.2,dir:-1}
+	]
 }
 
 const player = {
 	x: 60, y: 360, w: 28, h: 40,
 	vx:0, vy:0,
-	speed:5.2, jump:18, onGround:false
+	speed:5.2, jump:18, onGround:false,
+	fallingToGoal: false, fallTarget: 0
 }
 
 let cameraX = 0
 let won = false
+let wonTime = 0
 
 function reset(){
-	player.x = 60; player.y = 360; player.vx=0; player.vy=0; won=false; statusEl.textContent=''
+	player.x = 60; player.y = 360; player.vx=0; player.vy=0; won=false; wonTime=0; statusEl.textContent=''; goalScreenEl.style.display='none'
+	player.fallingToGoal = false
 }
 
 restartBtn.addEventListener('click', ()=>{reset()})
+retryBtn.addEventListener('click', ()=>{reset()})
 
 function bindTouchButton(button, keyName){
 	const setDown = ()=>{keys[keyName] = true}
@@ -84,7 +98,22 @@ function rectsOverlap(a,b){
 }
 
 function update(){
-	if(won) return
+	if(won && !player.fallingToGoal){
+		wonTime++
+		if(wonTime > 20){
+			player.fallingToGoal = true
+			player.fallTarget = level.goal.y + 320
+		}
+		return
+	}
+
+	if(player.fallingToGoal){
+		player.vy += GRAVITY
+		player.y += player.vy
+		if(player.y >= player.fallTarget){ player.y = player.fallTarget; goalScreenEl.style.display='flex' }
+		return
+	}
+
 	// input
 	let left = keys['ArrowLeft'] || keys['a']
 	let right = keys['ArrowRight'] || keys['d']
@@ -111,9 +140,16 @@ function update(){
 	// obstacles
 	for(const o of level.obstacles){ if(rectsOverlap(player,o)){ reset(); break } }
 
-	// goal
-	if(player.x + player.w >= level.goal.x && player.x <= level.goal.x + 40 && player.y < level.goal.y + 200){
-		won = true; statusEl.textContent = 'ゴール！おめでとう！'
+	// enemies
+	for(const e of level.enemies){ 
+		e.x += e.vx
+		if(e.x < 0 || e.x > level.width) e.vx *= -1
+		if(rectsOverlap(player,e)){ reset(); break }
+	}
+
+	// goal - flag collision (x: 2680-2760, y: 80-420)
+	if(player.x + player.w > level.goal.x - 40 && player.x < level.goal.x + 40 && player.y < level.goal.y + level.goal.h){
+		won = true; wonTime = 0
 	}
 
 	// camera
@@ -160,6 +196,9 @@ function draw(){
 	// draw obstacles
 	for(const o of level.obstacles){ ctx.fillStyle = '#e74c3c'; ctx.fillRect(o.x,o.y,o.w,o.h); drawSpikes(o.x,o.y,o.w,o.h) }
 
+	// draw enemies
+	for(const e of level.enemies){ drawEnemy(e.x, e.y, e.dir) }
+
 	// draw goal
 	drawGoal()
 
@@ -193,13 +232,27 @@ function drawPlayer(px, py){
 
 function drawGoal(){
 	const gx = level.goal.x, gy = level.goal.y
-	// pole
-	ctx.fillStyle = '#8b4513'; ctx.fillRect(gx+16, gy, 8, 200)
-	// flag
-	ctx.fillStyle = '#ffcc00'; ctx.fillRect(gx-20, gy+20, 50, 30)
-	ctx.strokeStyle = '#cc9900'; ctx.lineWidth = 2; ctx.strokeRect(gx-20, gy+20, 50, 30)
+	// pole (long)
+	ctx.fillStyle = '#8b4513'; ctx.fillRect(gx+16, gy, 8, 340)
+	// flag (larger)
+	ctx.fillStyle = '#ffcc00'; ctx.fillRect(gx-40, gy+20, 80, 50)
+	ctx.strokeStyle = '#cc9900'; ctx.lineWidth = 2; ctx.strokeRect(gx-40, gy+20, 80, 50)
 	// flag wave effect
-	ctx.fillStyle = '#ffd700'; ctx.fillRect(gx+15, gy+28, 15, 14)
+	ctx.fillStyle = '#ffd700'; ctx.fillRect(gx+15, gy+30, 20, 20)
+}
+
+function drawEnemy(ex, ey, dir){
+	// shell (Koopa-like)
+	ctx.fillStyle = '#27ae60'
+	ctx.fillRect(ex, ey, 30, 20)
+	ctx.fillStyle = '#229954'; ctx.fillRect(ex+2, ey+2, 10, 12); ctx.fillRect(ex+18, ey+2, 10, 12)
+	// head
+	ctx.fillStyle = '#1abc9c'; ctx.beginPath(); ctx.arc(ex+15, ey-6, 8, 0, Math.PI*2); ctx.fill()
+	// eyes
+	ctx.fillStyle = '#000'; ctx.fillRect(ex+12, ey-8, 2, 2); ctx.fillRect(ex+18, ey-8, 2, 2)
+	// direction indicator
+	if(dir > 0) { ctx.fillStyle = '#fff'; ctx.fillRect(ex+26, ey+6, 4, 2) }
+	else { ctx.fillStyle = '#fff'; ctx.fillRect(ex, ey+6, 4, 2) }
 }
 
 function loop(){ update(); draw(); requestAnimationFrame(loop) }
