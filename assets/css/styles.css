@@ -1,22 +1,11 @@
-*{box-sizing:border-box}
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo, sans-serif;background:#f4f7fb;color:#222;margin:0;padding:24px}
-.app{max-width:600px;margin:24px auto;background:#fff;border-radius:8px;padding:20px;box-shadow:0 6px 18px rgba(10,20,40,0.08)}
-header h1{margin:0 0 12px;font-size:1.4rem;text-align:center}
-.todo-app form{display:flex;gap:8px;margin-bottom:12px}
-#todo-input{flex:1;padding:10px;border:1px solid #ddd;border-radius:6px}
-button{background:#2b7bec;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
-button:active{transform:translateY(1px)}
-#todo-list{list-style:none;padding:0;margin:0}
-#todo-list li{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid #f0f0f0}
-.todo-left{display:flex;align-items:center;gap:10px}
-.todo-left input[type=checkbox]{width:18px;height:18px}
-.todo-text{max-width:420px;word-break:break-word}
-.todo-text.completed{text-decoration:line-through;color:#888}
-.controls{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
-.filters{display:flex;gap:6px}
-.filter{background:transparent;color:#444;padding:6px 8px;border-radius:6px;border:1px solid transparent}
-.filter.active{background:#eef6ff;border-color:#cfe3ff}
-#clear-completed{background:#e74c3c}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo, sans-serif;background:linear-gradient(#80d0ff,#ffffff);height:100vh;display:flex;align-items:center;justify-content:center}
+.game-wrap{position:relative;border:6px solid #2b7bec;border-radius:8px;background:#87ceeb;padding:8px}
+canvas{display:block;background:linear-gradient(#87ceeb,#6ec6ff);border-radius:4px}
+.hud{position:absolute;left:12px;top:8px;display:flex;gap:8px;align-items:center}
+.hud button{background:#ffcc00;border:none;padding:6px 10px;border-radius:6px;cursor:pointer}
+.hud #status{font-weight:700;color:#1b1b1b}
 
-@media (max-width:520px){.app{padding:14px}}
+/* in-game colors for reference */
+.info{font-size:12px;color:#fff}
 

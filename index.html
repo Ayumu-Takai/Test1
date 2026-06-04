@@ -1,38 +1,20 @@
 <!doctype html>
 <html lang="ja">
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width,initial-scale=1">
-	<title>To Do リスト</title>
-	<link rel="stylesheet" href="assets/css/styles.css">
-</head>
-<body>
-	<div class="app">
-		<header>
-			<h1>To Do リスト</h1>
-		</header>
-
-		<section class="todo-app">
-			<form id="todo-form">
-				<input id="todo-input" placeholder="新しいタスクを追加..." autocomplete="off">
-				<button type="submit">追加</button>
-			</form>
-
-			<ul id="todo-list"></ul>
-
-			<div class="controls">
-				<span id="count">0 件</span>
-				<div class="filters">
-					<button data-filter="all" class="filter active">すべて</button>
-					<button data-filter="active" class="filter">未完了</button>
-					<button data-filter="completed" class="filter">完了</button>
-				</div>
-				<button id="clear-completed">完了を削除</button>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<title>Mini Platformer</title>
+		<link rel="stylesheet" href="assets/css/styles.css">
+	</head>
+	<body>
+		<div class="game-wrap">
+			<canvas id="game" width="900" height="480"></canvas>
+			<div class="hud">
+				<button id="restart">再スタート</button>
+				<span id="status"></span>
 			</div>
-		</section>
-	</div>
-
-	<script src="assets/js/main.js"></script>
-</body>
+		</div>
+		<script src="assets/js/main.js"></script>
+	</body>
 </html>
 
