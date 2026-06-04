@@ -54,7 +54,7 @@ function buildLevel(){
 const player = {
 	x: 60, y: 360, w: 28, h: 40,
 	vx:0, vy:0,
-	speed:3.2, jump:18, onGround:false
+	speed:5.2, jump:18, onGround:false
 }
 
 let cameraX = 0
@@ -112,7 +112,7 @@ function update(){
 	for(const o of level.obstacles){ if(rectsOverlap(player,o)){ reset(); break } }
 
 	// goal
-	if(player.x + player.w >= level.goal.x && player.y + player.h <= level.goal.y + level.goal.h){
+	if(player.x + player.w >= level.goal.x && player.x <= level.goal.x + 40 && player.y < level.goal.y + 200){
 		won = true; statusEl.textContent = 'ゴール！おめでとう！'
 	}
 
@@ -161,11 +161,10 @@ function draw(){
 	for(const o of level.obstacles){ ctx.fillStyle = '#e74c3c'; ctx.fillRect(o.x,o.y,o.w,o.h); drawSpikes(o.x,o.y,o.w,o.h) }
 
 	// draw goal
-	ctx.fillStyle = '#ffd700'; ctx.fillRect(level.goal.x, level.goal.y, level.goal.w, level.goal.h)
-	ctx.fillStyle = '#c49a00'; ctx.fillRect(level.goal.x+level.goal.w, level.goal.y-30,6,30)
+	drawGoal()
 
 	// draw player
-	ctx.fillStyle = '#ff4d4d'; ctx.fillRect(player.x, player.y, player.w, player.h)
+	drawPlayer(player.x, player.y)
 
 	ctx.restore()
 }
@@ -178,6 +177,29 @@ function drawSpikes(x,y,w,h){
 		ctx.beginPath(); ctx.moveTo(sx, y+h); ctx.lineTo(sx+spikeW/2, y); ctx.lineTo(sx+spikeW, y+h); ctx.closePath(); ctx.fill();
 		ctx.strokeStyle='#b30000'; ctx.stroke();
 	}
+}
+
+function drawPlayer(px, py){
+	// body
+	ctx.fillStyle = '#ff6b6b'
+	ctx.beginPath(); ctx.arc(px+14, py+12, 10, 0, Math.PI*2); ctx.fill()
+	// legs
+	ctx.fillStyle = '#ff6b6b'; ctx.fillRect(px+8, py+22, 5, 10); ctx.fillRect(px+15, py+22, 5, 10)
+	// eyes
+	ctx.fillStyle = '#000'; ctx.fillRect(px+10, py+8, 2, 2); ctx.fillRect(px+16, py+8, 2, 2)
+	// smile
+	ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(px+13, py+12, 2.5, 0, Math.PI); ctx.stroke()
+}
+
+function drawGoal(){
+	const gx = level.goal.x, gy = level.goal.y
+	// pole
+	ctx.fillStyle = '#8b4513'; ctx.fillRect(gx+16, gy, 8, 200)
+	// flag
+	ctx.fillStyle = '#ffcc00'; ctx.fillRect(gx-20, gy+20, 50, 30)
+	ctx.strokeStyle = '#cc9900'; ctx.lineWidth = 2; ctx.strokeRect(gx-20, gy+20, 50, 30)
+	// flag wave effect
+	ctx.fillStyle = '#ffd700'; ctx.fillRect(gx+15, gy+28, 15, 14)
 }
 
 function loop(){ update(); draw(); requestAnimationFrame(loop) }
