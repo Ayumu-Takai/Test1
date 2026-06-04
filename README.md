@@ -1,33 +1,34 @@
-# SimpleVercelHTML
+# To Do リスト
 
-HTML、CSS、JavaScriptだけで構成した、Vercel向けの静的サイトです。
+シンプルなクライアントサイドのTo Doアプリです。タスクの追加、完了切替、削除ができ、ブラウザの`localStorage`でデータを永続化します。
+
+## 使い方
+
+- ブラウザで `index.html` を開いてください。
+- タスクを入力して「追加」を押すとリストに追加されます。
+- チェックボックスで完了・未完了を切り替え、`削除`で項目を削除します。
+- 画面下のフィルタで表示を切り替えられます（すべて / 未完了 / 完了）。
+- `完了を削除` ボタンで完了済みタスクをまとめて削除できます。
 
 ## ファイル構成
 
-```text
-.
-├── index.html
-├── assets/
-│   ├── css/
-│   │   └── styles.css
-│   └── js/
-│       └── main.js
-├── vercel.json
-└── README.md
+- `index.html` — アプリのエントリ（UI）
+- `assets/css/styles.css` — スタイル
+- `assets/js/main.js` — アプリロジック（localStorage永続化含む）
+
+## 開発・ローカルサーブ（任意）
+
+簡易的にHTTPサーバで配信する場合（推奨：一部ブラウザで`file://`制限がある場合）：
+
+Windows PowerShell:
+
+```powershell
+python -m http.server 8000
 ```
 
-## ゲーム
+ブラウザで `http://localhost:8000/` を開いてください。
 
-ページに「ターゲットキャッチゲーム」が追加されました。スタートボタンを押すと、ゲームエリア内で動くターゲットをクリックしてスコアを競えます。
+## ライセンス
 
-## Vercelへの接続
+このプロジェクトは自由に使って編集できます。
 
-1. このリポジトリをGitHubにpushする
-2. Vercelで「Add New...」→「Project」を選ぶ
-3. GitHubリポジトリをImportする
-4. Framework Presetは `Other` を選ぶ
-5. Build Commandは空のままにする
-6. Output Directoryは空のまま、または `.` を指定する
-7. Deployを実行する
-
-`vercel.json` はリポジトリ直下に置いてあります。VercelがGitHubと接続されたら、そのまま静的ファイルとして公開できます。
