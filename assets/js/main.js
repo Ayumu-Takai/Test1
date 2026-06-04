@@ -8,6 +8,9 @@ document.addEventListener('keyup', e=>{keys[e.key]=false})
 
 const restartBtn = document.getElementById('restart')
 const statusEl = document.getElementById('status')
+const leftBtn = document.getElementById('left-btn')
+const upBtn = document.getElementById('up-btn')
+const rightBtn = document.getElementById('right-btn')
 
 const GRAVITY = 0.8
 
@@ -62,6 +65,19 @@ function reset(){
 }
 
 restartBtn.addEventListener('click', ()=>{reset()})
+
+function bindTouchButton(button, keyName){
+	const setDown = ()=>{keys[keyName] = true}
+	const setUp = ()=>{keys[keyName] = false}
+	button.addEventListener('pointerdown', e=>{e.preventDefault(); setDown()})
+	button.addEventListener('pointerup', e=>{e.preventDefault(); setUp()})
+	button.addEventListener('pointercancel', setUp)
+	button.addEventListener('pointerleave', setUp)
+}
+
+bindTouchButton(leftBtn, 'ArrowLeft')
+bindTouchButton(upBtn, 'ArrowUp')
+bindTouchButton(rightBtn, 'ArrowRight')
 
 function rectsOverlap(a,b){
 	return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y

@@ -5,6 +5,8 @@ canvas{display:block;background:linear-gradient(#87ceeb,#6ec6ff);border-radius:4
 .hud{position:absolute;left:12px;top:8px;display:flex;gap:8px;align-items:center}
 .hud button{background:#ffcc00;border:none;padding:6px 10px;border-radius:6px;cursor:pointer}
 .hud #status{font-weight:700;color:#1b1b1b}
+.touch-controls{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:10}
+.touch-controls button{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.95);border:2px solid #444;box-shadow:0 6px 12px rgba(0,0,0,0.18);font-size:1.4rem;color:#111;touch-action:none}
 
 /* in-game colors for reference */
 .info{font-size:12px;color:#fff}
