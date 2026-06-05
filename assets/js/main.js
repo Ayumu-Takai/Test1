@@ -36,31 +36,24 @@ if(useThree){
 	renderer.setPixelRatio(window.devicePixelRatio || 1)
 	renderer.setSize(W, H)
 	renderer.setClearColor(0x87ceeb)
-	renderer.shadowMap.enabled = true
 
 	scene = new THREE.Scene()
-	scene.fog = new THREE.Fog(0x87ceeb, 300, 1200)
 
-	camera = new THREE.PerspectiveCamera(58, W / H, 1, 5000)
-	camera.position.set(120, 180, 300)
-
-	const ambientLight = new THREE.HemisphereLight(0xffffff, 0x8db0c7, 0.75)
-	ambientLight.position.set(0, 200, 0)
-	scene.add(ambientLight)
-	const dirLight = new THREE.DirectionalLight(0xffffff, 0.85)
-	dirLight.position.set(-120, 220, 120)
-	dirLight.castShadow = true
-	dirLight.shadow.mapSize.set(1024, 1024)
-	scene.add(dirLight)
+	camera = new THREE.OrthographicCamera(0, W, 0, H, -1000, 1000)
+	camera.position.set(W / 2, H / 2, 100)
+	camera.lookAt(new THREE.Vector3(W / 2, H / 2, 0))
 
 	materials = {
-		ground: new THREE.MeshStandardMaterial({color: 0x6bbf3d, roughness: 0.85, metalness: 0.1}),
-		platform: new THREE.MeshStandardMaterial({color: 0x8b5a2b, roughness: 0.75}),
-		pipe: new THREE.MeshStandardMaterial({color: 0x2ecc71, roughness: 0.7}),
-		obstacle: new THREE.MeshStandardMaterial({color: 0xe74c3c, roughness: 0.62}),
-		enemy: new THREE.MeshStandardMaterial({color: 0x229954, roughness: 0.5}),
-		player: new THREE.MeshStandardMaterial({color: 0xff6b6b, roughness: 0.4}),
-		goal: new THREE.MeshStandardMaterial({color: 0xffcc00, roughness: 0.65})
+		ground: new THREE.MeshBasicMaterial({color: 0x6bbf3d}),
+		platform: new THREE.MeshBasicMaterial({color: 0x8b5a2b}),
+		pipe: new THREE.MeshBasicMaterial({color: 0x2ecc71}),
+		pipeTop: new THREE.MeshBasicMaterial({color: 0x27ae60}),
+		obstacle: new THREE.MeshBasicMaterial({color: 0xe74c3c}),
+		enemy: new THREE.MeshBasicMaterial({color: 0x229954}),
+		player: new THREE.MeshBasicMaterial({color: 0xff6b6b}),
+		goalPole: new THREE.MeshBasicMaterial({color: 0x8b4513}),
+		goalFlag: new THREE.MeshBasicMaterial({color: 0xffcc00}),
+		goalAccent: new THREE.MeshBasicMaterial({color: 0xffd700})
 	}
 
 	worldGroup = new THREE.Group()
@@ -69,14 +62,11 @@ if(useThree){
 
 function createMesh(geometry, material){
 	if(!useThree) return null
-	const mesh = new THREE.Mesh(geometry, material)
-	mesh.castShadow = true
-	mesh.receiveShadow = true
-	return mesh
+	return new THREE.Mesh(geometry, material)
 }
 
 function worldYFromCanvas(y, h){
-	return 420 - (y + h / 2)
+	return y + h / 2
 }
 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)()
@@ -330,58 +320,70 @@ function buildScene(){
 	obstacleMeshes.length = 0
 	enemyMeshes.length = 0
 
-	const groundMesh = createMesh(new THREE.BoxGeometry(level.width, 10, 260), materials.ground)
-	groundMesh.position.set(level.width / 2, -5, 0)
-	groundMesh.receiveShadow = true
+	const groundMesh = createMesh(new THREE.PlaneGeometry(level.width, 60), materials.ground)
+	groundMesh.position.set(level.width / 2, 450, 0)
 	worldGroup.add(groundMesh)
 
 	for(const p of level.platforms){
-		const mesh = createMesh(new THREE.BoxGeometry(p.w, 10, 40), materials.platform)
-		mesh.position.set(p.x + p.w / 2, worldYFromCanvas(p.y, p.h) + 5, -20)
+		const mesh = createMesh(new THREE.PlaneGeometry(p.w, p.h), materials.platform)
+		mesh.position.set(p.x + p.w / 2, p.y + p.h / 2, 0)
 		platformMeshes.push(mesh)
 		worldGroup.add(mesh)
 	}
 
 	for(const p of level.pipes){
-		const mesh = createMesh(new THREE.CylinderGeometry(p.w / 2, p.w / 2, p.h, 16), materials.pipe)
-		mesh.position.set(p.x + p.w / 2, worldYFromCanvas(p.y, p.h) + p.h / 2, -10)
-		pipeMeshes.push(mesh)
-		worldGroup.add(mesh)
+		const pipeBody = createMesh(new THREE.PlaneGeometry(p.w, p.h), materials.pipe)
+		pipeBody.position.set(p.x + p.w / 2, p.y + p.h / 2, 0)
+		worldGroup.add(pipeBody)
+
+		const pipeTop = createMesh(new THREE.PlaneGeometry(p.w + 12, 12), materials.pipeTop)
+		pipeTop.position.set(p.x + p.w / 2, p.y + 6, 0.1)
+		worldGroup.add(pipeTop)
+		pipeMeshes.push(pipeBody)
 	}
 
 	for(const o of level.obstacles){
-		const mesh = createMesh(new THREE.BoxGeometry(o.w, o.h, 30), materials.obstacle)
-		mesh.position.set(o.x + o.w / 2, worldYFromCanvas(o.y, o.h) + o.h / 2, 10)
+		const mesh = createMesh(new THREE.PlaneGeometry(o.w, o.h), materials.obstacle)
+		mesh.position.set(o.x + o.w / 2, o.y + o.h / 2, 0)
 		obstacleMeshes.push(mesh)
 		worldGroup.add(mesh)
 	}
 
 	for(const e of level.enemies){
-		const mesh = createMesh(new THREE.BoxGeometry(e.w, e.h, 34), materials.enemy)
-		mesh.position.set(e.x + e.w / 2, worldYFromCanvas(e.y, e.h) + e.h / 2, 20)
+		const mesh = createMesh(new THREE.PlaneGeometry(e.w, e.h), materials.enemy)
+		mesh.position.set(e.x + e.w / 2, e.y + e.h / 2, 0)
 		enemyMeshes.push(mesh)
 		worldGroup.add(mesh)
 	}
 
-	if(goalMesh){ worldGroup.remove(goalMesh) }
-	goalMesh = createMesh(new THREE.BoxGeometry(level.goal.w, level.goal.h, 60), materials.goal)
-	goalMesh.position.set(level.goal.x + level.goal.w / 2, worldYFromCanvas(level.goal.y, level.goal.h) + level.goal.h / 2, -40)
-	worldGroup.add(goalMesh)
+	const goalPole = createMesh(new THREE.PlaneGeometry(8, level.goal.h), materials.goalPole)
+	goalPole.position.set(level.goal.x + 24, level.goal.y + level.goal.h / 2, 0)
+	worldGroup.add(goalPole)
+
+	const goalFlag = createMesh(new THREE.PlaneGeometry(80, 50), materials.goalFlag)
+	goalFlag.position.set(level.goal.x, level.goal.y + 45, 0)
+	goalFlag.rotation.z = -0.05
+	worldGroup.add(goalFlag)
+
+	const goalAccent = createMesh(new THREE.PlaneGeometry(20, 20), materials.goalAccent)
+	goalAccent.position.set(level.goal.x + 13, level.goal.y + 45, 0.1)
+	worldGroup.add(goalAccent)
 
 	if(playerMesh){ worldGroup.remove(playerMesh) }
-	playerMesh = createMesh(new THREE.SphereGeometry(14, 24, 24), materials.player)
-	playerMesh.position.set(player.x + player.w / 2, worldYFromCanvas(player.y, player.h), 40)
+	playerMesh = createMesh(new THREE.CircleGeometry(14, 32), materials.player)
+	playerMesh.position.set(player.x + player.w / 2, player.y + player.h / 2, 0)
 	worldGroup.add(playerMesh)
 }
 
 function updateScene(){
 	if(!useThree) return
-	playerMesh.position.set(player.x + player.w / 2, worldYFromCanvas(player.y, player.h), 40)
+	playerMesh.position.set(player.x + player.w / 2, player.y + player.h / 2, 0)
 	for(let i = 0; i < level.enemies.length; i++){
-		enemyMeshes[i].position.set(level.enemies[i].x + level.enemies[i].w / 2, worldYFromCanvas(level.enemies[i].y, level.enemies[i].h) + level.enemies[i].h / 2, 20)
+		enemyMeshes[i].position.set(level.enemies[i].x + level.enemies[i].w / 2, level.enemies[i].y + level.enemies[i].h / 2, 0)
 	}
-	camera.position.set(player.x + 120, worldYFromCanvas(player.y, player.h) + 80, 320)
-	camera.lookAt(playerMesh.position)
+	const camX = Math.min(Math.max(player.x - W * 0.3, 0), level.width - W)
+	camera.position.set(camX + W / 2, H / 2, 100)
+	camera.updateProjectionMatrix()
 }
 
 function draw(){
