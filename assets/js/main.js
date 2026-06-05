@@ -1,6 +1,9 @@
+import * as THREE from './three.module.js'
+
 const canvas = document.getElementById('game')
-const ctx = canvas.getContext('2d')
 const W = canvas.width, H = canvas.height
+const useThree = true
+const ctx = null
 
 let keys = {}
 document.addEventListener('keydown', e=>{keys[e.key]=true})
@@ -16,47 +19,56 @@ const retryBtn = document.getElementById('retry-btn')
 
 const GRAVITY = 0.8
 
-const renderer = new THREE.WebGLRenderer({canvas, antialias:true})
-renderer.setPixelRatio(window.devicePixelRatio || 1)
-renderer.setSize(W, H)
-renderer.setClearColor(0x87ceeb)
-renderer.shadowMap.enabled = true
-
-const scene = new THREE.Scene()
-scene.fog = new THREE.Fog(0x87ceeb, 300, 1200)
-
-const camera = new THREE.PerspectiveCamera(58, W / H, 1, 5000)
-camera.position.set(120, 180, 300)
-
-const ambientLight = new THREE.HemisphereLight(0xffffff, 0x8db0c7, 0.75)
-ambientLight.position.set(0, 200, 0)
-scene.add(ambientLight)
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.85)
-dirLight.position.set(-120, 220, 120)
-dirLight.castShadow = true
-dirLight.shadow.mapSize.set(1024, 1024)
-scene.add(dirLight)
-
-const materials = {
-	ground: new THREE.MeshStandardMaterial({color: 0x6bbf3d, roughness: 0.85, metalness: 0.1}),
-	platform: new THREE.MeshStandardMaterial({color: 0x8b5a2b, roughness: 0.75}),
-	pipe: new THREE.MeshStandardMaterial({color: 0x2ecc71, roughness: 0.7}),
-	obstacle: new THREE.MeshStandardMaterial({color: 0xe74c3c, roughness: 0.62}),
-	enemy: new THREE.MeshStandardMaterial({color: 0x229954, roughness: 0.5}),
-	player: new THREE.MeshStandardMaterial({color: 0xff6b6b, roughness: 0.4}),
-	goal: new THREE.MeshStandardMaterial({color: 0xffcc00, roughness: 0.65})
-}
-
-const worldGroup = new THREE.Group()
-scene.add(worldGroup)
+let renderer = null
+let scene = null
+let camera = null
+let worldGroup = null
 const platformMeshes = []
 const pipeMeshes = []
 const obstacleMeshes = []
 const enemyMeshes = []
 let playerMesh = null
 let goalMesh = null
+let materials = null
+
+if(useThree){
+	renderer = new THREE.WebGLRenderer({canvas, antialias:true})
+	renderer.setPixelRatio(window.devicePixelRatio || 1)
+	renderer.setSize(W, H)
+	renderer.setClearColor(0x87ceeb)
+	renderer.shadowMap.enabled = true
+
+	scene = new THREE.Scene()
+	scene.fog = new THREE.Fog(0x87ceeb, 300, 1200)
+
+	camera = new THREE.PerspectiveCamera(58, W / H, 1, 5000)
+	camera.position.set(120, 180, 300)
+
+	const ambientLight = new THREE.HemisphereLight(0xffffff, 0x8db0c7, 0.75)
+	ambientLight.position.set(0, 200, 0)
+	scene.add(ambientLight)
+	const dirLight = new THREE.DirectionalLight(0xffffff, 0.85)
+	dirLight.position.set(-120, 220, 120)
+	dirLight.castShadow = true
+	dirLight.shadow.mapSize.set(1024, 1024)
+	scene.add(dirLight)
+
+	materials = {
+		ground: new THREE.MeshStandardMaterial({color: 0x6bbf3d, roughness: 0.85, metalness: 0.1}),
+		platform: new THREE.MeshStandardMaterial({color: 0x8b5a2b, roughness: 0.75}),
+		pipe: new THREE.MeshStandardMaterial({color: 0x2ecc71, roughness: 0.7}),
+		obstacle: new THREE.MeshStandardMaterial({color: 0xe74c3c, roughness: 0.62}),
+		enemy: new THREE.MeshStandardMaterial({color: 0x229954, roughness: 0.5}),
+		player: new THREE.MeshStandardMaterial({color: 0xff6b6b, roughness: 0.4}),
+		goal: new THREE.MeshStandardMaterial({color: 0xffcc00, roughness: 0.65})
+	}
+
+	worldGroup = new THREE.Group()
+	scene.add(worldGroup)
+}
 
 function createMesh(geometry, material){
+	if(!useThree) return null
 	const mesh = new THREE.Mesh(geometry, material)
 	mesh.castShadow = true
 	mesh.receiveShadow = true
@@ -311,6 +323,7 @@ function resolveCollisions(axis){
 }
 
 function buildScene(){
+	if(!useThree) return
 	while(worldGroup.children.length) worldGroup.remove(worldGroup.children[0])
 	platformMeshes.length = 0
 	pipeMeshes.length = 0
@@ -362,6 +375,7 @@ function buildScene(){
 }
 
 function updateScene(){
+	if(!useThree) return
 	playerMesh.position.set(player.x + player.w / 2, worldYFromCanvas(player.y, player.h), 40)
 	for(let i = 0; i < level.enemies.length; i++){
 		enemyMeshes[i].position.set(level.enemies[i].x + level.enemies[i].w / 2, worldYFromCanvas(level.enemies[i].y, level.enemies[i].h) + level.enemies[i].h / 2, 20)
@@ -371,8 +385,28 @@ function updateScene(){
 }
 
 function draw(){
-	updateScene()
-	renderer.render(scene, camera)
+	if(useThree){
+		updateScene()
+		renderer.render(scene, camera)
+		return
+	}
+
+	// Fallback 2D rendering
+	ctx.clearRect(0,0,W,H)
+	ctx.fillStyle = '#87ceeb'
+	ctx.fillRect(0,0,W,H)
+
+	ctx.save()
+	ctx.translate(-cameraX,0)
+
+	for(const p of level.platforms){ ctx.fillStyle = '#654321'; ctx.fillRect(p.x,p.y,p.w,p.h) }
+	for(const p of level.pipes){ ctx.fillStyle = '#2ecc71'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='#1e7f3b'; ctx.fillRect(p.x-6,p.y-8,p.w+12,8) }
+	for(const o of level.obstacles){ ctx.fillStyle = '#e74c3c'; ctx.fillRect(o.x,o.y,o.w,o.h); drawSpikes(o.x,o.y,o.w,o.h) }
+	for(const e of level.enemies){ drawEnemy(e.x, e.y, e.dir) }
+	drawGoal()
+	drawPlayer(player.x, player.y)
+
+	ctx.restore()
 }
 
 function drawSpikes(x,y,w,h){
