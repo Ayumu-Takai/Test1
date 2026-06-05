@@ -17,18 +17,71 @@ const retryBtn = document.getElementById('retry-btn')
 const GRAVITY = 0.8
 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)()
-function playJumpSound(){
-	if(audioContext.state === 'suspended') audioContext.resume()
+const bgmGain = audioContext.createGain()
+let bgmStarted = false
+let bgmIntervalId = null
+bgmGain.gain.value = 0.06
+bgmGain.connect(audioContext.destination)
+
+function playBGMNote(startTime, freq, duration, type='triangle', volume=0.06){
 	const osc = audioContext.createOscillator()
 	const gain = audioContext.createGain()
-	osc.type = 'triangle'
-	osc.frequency.value = 320
-	gain.gain.value = 0.15
+	osc.type = type
+	osc.frequency.value = freq
+	gain.gain.setValueAtTime(0.0, startTime)
+	gain.gain.linearRampToValueAtTime(volume, startTime + 0.02)
+	gain.gain.setValueAtTime(volume, startTime + duration - 0.03)
+	gain.gain.linearRampToValueAtTime(0.001, startTime + duration)
+	osc.connect(gain)
+	gain.connect(bgmGain)
+	osc.start(startTime)
+	osc.stop(startTime + duration + 0.02)
+}
+
+function scheduleBGM(){
+	if(audioContext.state === 'suspended') return
+	const start = audioContext.currentTime + 0.05
+	const melody = [440, 494, 523, 587, 659, 587, 523, 494]
+	const durations = [0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24]
+	const bass = [220, 220, 196, 196, 165, 165, 196, 196]
+	let t = 0
+	for(let i = 0; i < melody.length; i++){
+		playBGMNote(start + t, melody[i], durations[i], 'triangle', 0.06)
+		playBGMNote(start + t, bass[i], durations[i] * 2, 'square', 0.035)
+		t += durations[i]
+	}
+}
+
+function startBGM(){
+	if(bgmStarted) return
+	bgmStarted = true
+	if(audioContext.state === 'suspended') audioContext.resume()
+	scheduleBGM()
+	bgmIntervalId = setInterval(scheduleBGM, 1920)
+}
+
+function initAudio(){
+	if(bgmStarted) return
+	if(audioContext.state === 'suspended') audioContext.resume()
+	startBGM()
+}
+
+window.addEventListener('pointerdown', initAudio, {once:true})
+window.addEventListener('keydown', initAudio, {once:true})
+
+function playJumpSound(){
+	if(audioContext.state === 'suspended') audioContext.resume()
+	if(!bgmStarted) startBGM()
+	const osc = audioContext.createOscillator()
+	const gain = audioContext.createGain()
+	osc.type = 'square'
+	osc.frequency.value = 520
+	gain.gain.value = 0.18
 	osc.connect(gain)
 	gain.connect(audioContext.destination)
 	osc.start()
-	osc.stop(audioContext.currentTime + 0.12)
-	gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.12)
+	osc.stop(audioContext.currentTime + 0.18)
+	gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.18)
 }
 
 let level = {
