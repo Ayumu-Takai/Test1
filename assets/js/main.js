@@ -16,24 +16,78 @@ const retryBtn = document.getElementById('retry-btn')
 
 const GRAVITY = 0.8
 
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true})
+renderer.setPixelRatio(window.devicePixelRatio || 1)
+renderer.setSize(W, H)
+renderer.setClearColor(0x87ceeb)
+renderer.shadowMap.enabled = true
+
+const scene = new THREE.Scene()
+scene.fog = new THREE.Fog(0x87ceeb, 300, 1200)
+
+const camera = new THREE.PerspectiveCamera(58, W / H, 1, 5000)
+camera.position.set(120, 180, 300)
+
+const ambientLight = new THREE.HemisphereLight(0xffffff, 0x8db0c7, 0.75)
+ambientLight.position.set(0, 200, 0)
+scene.add(ambientLight)
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.85)
+dirLight.position.set(-120, 220, 120)
+dirLight.castShadow = true
+dirLight.shadow.mapSize.set(1024, 1024)
+scene.add(dirLight)
+
+const materials = {
+	ground: new THREE.MeshStandardMaterial({color: 0x6bbf3d, roughness: 0.85, metalness: 0.1}),
+	platform: new THREE.MeshStandardMaterial({color: 0x8b5a2b, roughness: 0.75}),
+	pipe: new THREE.MeshStandardMaterial({color: 0x2ecc71, roughness: 0.7}),
+	obstacle: new THREE.MeshStandardMaterial({color: 0xe74c3c, roughness: 0.62}),
+	enemy: new THREE.MeshStandardMaterial({color: 0x229954, roughness: 0.5}),
+	player: new THREE.MeshStandardMaterial({color: 0xff6b6b, roughness: 0.4}),
+	goal: new THREE.MeshStandardMaterial({color: 0xffcc00, roughness: 0.65})
+}
+
+const worldGroup = new THREE.Group()
+scene.add(worldGroup)
+const platformMeshes = []
+const pipeMeshes = []
+const obstacleMeshes = []
+const enemyMeshes = []
+let playerMesh = null
+let goalMesh = null
+
+function createMesh(geometry, material){
+	const mesh = new THREE.Mesh(geometry, material)
+	mesh.castShadow = true
+	mesh.receiveShadow = true
+	return mesh
+}
+
+function worldYFromCanvas(y, h){
+	return 420 - (y + h / 2)
+}
+
 const audioContext = new (window.AudioContext || window.webkitAudioContext)()
 const bgmGain = audioContext.createGain()
 let bgmStarted = false
 let bgmIntervalId = null
-bgmGain.gain.value = 0.06
+bgmGain.gain.value = 0.05
 bgmGain.connect(audioContext.destination)
 
-function playBGMNote(startTime, freq, duration, type='triangle', volume=0.06){
+function playBGMNote(startTime, freq, duration, type='triangle', volume=0.05, pan=0){
 	const osc = audioContext.createOscillator()
-	const gain = audioContext.createGain()
+	const gain = audioContext.createGain()	
 	osc.type = type
 	osc.frequency.value = freq
 	gain.gain.setValueAtTime(0.0, startTime)
 	gain.gain.linearRampToValueAtTime(volume, startTime + 0.02)
-	gain.gain.setValueAtTime(volume, startTime + duration - 0.03)
+	gain.gain.setValueAtTime(volume, startTime + duration - 0.04)
 	gain.gain.linearRampToValueAtTime(0.001, startTime + duration)
+	const panner = audioContext.createStereoPanner()
+	panner.pan.value = pan
 	osc.connect(gain)
-	gain.connect(bgmGain)
+	gain.connect(panner)
+	panner.connect(bgmGain)
 	osc.start(startTime)
 	osc.stop(startTime + duration + 0.02)
 }
@@ -41,14 +95,16 @@ function playBGMNote(startTime, freq, duration, type='triangle', volume=0.06){
 function scheduleBGM(){
 	if(audioContext.state === 'suspended') return
 	const start = audioContext.currentTime + 0.05
-	const melody = [440, 494, 523, 587, 659, 587, 523, 494]
+	const melody = [440, 494, 523, 523, 587, 659, 587, 523]
 	const durations = [0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24]
-	const bass = [220, 220, 196, 196, 165, 165, 196, 196]
-	let t = 0
+	const harmony = [330, 330, 294, 294, 330, 330, 294, 294]
+	const bass = [220, 196, 165, 196, 220, 196, 165, 196]
+	let offset = 0
 	for(let i = 0; i < melody.length; i++){
-		playBGMNote(start + t, melody[i], durations[i], 'triangle', 0.06)
-		playBGMNote(start + t, bass[i], durations[i] * 2, 'square', 0.035)
-		t += durations[i]
+		playBGMNote(start + offset, melody[i], durations[i], 'triangle', 0.055, 0.25)
+		playBGMNote(start + offset, harmony[i], durations[i], 'sine', 0.03, -0.25)
+		playBGMNote(start + offset, bass[i], durations[i] * 1.9, 'square', 0.03, 0)
+		offset += durations[i]
 	}
 }
 
@@ -74,14 +130,17 @@ function playJumpSound(){
 	if(!bgmStarted) startBGM()
 	const osc = audioContext.createOscillator()
 	const gain = audioContext.createGain()
+	const panner = audioContext.createStereoPanner()
 	osc.type = 'square'
-	osc.frequency.value = 520
-	gain.gain.value = 0.18
+	osc.frequency.value = 580
+	gain.gain.value = 0.22
+	panner.pan.value = 0.15
 	osc.connect(gain)
-	gain.connect(audioContext.destination)
+	gain.connect(panner)
+	panner.connect(audioContext.destination)
 	osc.start()
-	osc.stop(audioContext.currentTime + 0.18)
-	gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.18)
+	osc.stop(audioContext.currentTime + 0.22)
+	gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.22)
 }
 
 let level = {
@@ -127,6 +186,7 @@ function buildLevel(){
 		{x:1200,y:320,w:30,h:30,vx:2.5,dir:1},
 		{x:1900,y:280,w:30,h:30,vx:-2.2,dir:-1}
 	]
+	buildScene()
 }
 
 const player = {
@@ -250,34 +310,69 @@ function resolveCollisions(axis){
 	}
 }
 
+function buildScene(){
+	while(worldGroup.children.length) worldGroup.remove(worldGroup.children[0])
+	platformMeshes.length = 0
+	pipeMeshes.length = 0
+	obstacleMeshes.length = 0
+	enemyMeshes.length = 0
+
+	const groundMesh = createMesh(new THREE.BoxGeometry(level.width, 10, 260), materials.ground)
+	groundMesh.position.set(level.width / 2, -5, 0)
+	groundMesh.receiveShadow = true
+	worldGroup.add(groundMesh)
+
+	for(const p of level.platforms){
+		const mesh = createMesh(new THREE.BoxGeometry(p.w, 10, 40), materials.platform)
+		mesh.position.set(p.x + p.w / 2, worldYFromCanvas(p.y, p.h) + 5, -20)
+		platformMeshes.push(mesh)
+		worldGroup.add(mesh)
+	}
+
+	for(const p of level.pipes){
+		const mesh = createMesh(new THREE.CylinderGeometry(p.w / 2, p.w / 2, p.h, 16), materials.pipe)
+		mesh.position.set(p.x + p.w / 2, worldYFromCanvas(p.y, p.h) + p.h / 2, -10)
+		pipeMeshes.push(mesh)
+		worldGroup.add(mesh)
+	}
+
+	for(const o of level.obstacles){
+		const mesh = createMesh(new THREE.BoxGeometry(o.w, o.h, 30), materials.obstacle)
+		mesh.position.set(o.x + o.w / 2, worldYFromCanvas(o.y, o.h) + o.h / 2, 10)
+		obstacleMeshes.push(mesh)
+		worldGroup.add(mesh)
+	}
+
+	for(const e of level.enemies){
+		const mesh = createMesh(new THREE.BoxGeometry(e.w, e.h, 34), materials.enemy)
+		mesh.position.set(e.x + e.w / 2, worldYFromCanvas(e.y, e.h) + e.h / 2, 20)
+		enemyMeshes.push(mesh)
+		worldGroup.add(mesh)
+	}
+
+	if(goalMesh){ worldGroup.remove(goalMesh) }
+	goalMesh = createMesh(new THREE.BoxGeometry(level.goal.w, level.goal.h, 60), materials.goal)
+	goalMesh.position.set(level.goal.x + level.goal.w / 2, worldYFromCanvas(level.goal.y, level.goal.h) + level.goal.h / 2, -40)
+	worldGroup.add(goalMesh)
+
+	if(playerMesh){ worldGroup.remove(playerMesh) }
+	playerMesh = createMesh(new THREE.SphereGeometry(14, 24, 24), materials.player)
+	playerMesh.position.set(player.x + player.w / 2, worldYFromCanvas(player.y, player.h), 40)
+	worldGroup.add(playerMesh)
+}
+
+function updateScene(){
+	playerMesh.position.set(player.x + player.w / 2, worldYFromCanvas(player.y, player.h), 40)
+	for(let i = 0; i < level.enemies.length; i++){
+		enemyMeshes[i].position.set(level.enemies[i].x + level.enemies[i].w / 2, worldYFromCanvas(level.enemies[i].y, level.enemies[i].h) + level.enemies[i].h / 2, 20)
+	}
+	camera.position.set(player.x + 120, worldYFromCanvas(player.y, player.h) + 80, 320)
+	camera.lookAt(playerMesh.position)
+}
+
 function draw(){
-	// background
-	ctx.clearRect(0,0,W,H)
-	ctx.fillStyle = '#87ceeb'
-	ctx.fillRect(0,0,W,H)
-
-	ctx.save()
-	ctx.translate(-cameraX,0)
-
-	// draw platforms
-	for(const p of level.platforms){ ctx.fillStyle = '#654321'; ctx.fillRect(p.x,p.y,p.w,p.h) }
-
-	// draw pipes
-	for(const p of level.pipes){ ctx.fillStyle = '#2ecc71'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='#1e7f3b'; ctx.fillRect(p.x-6,p.y-8,p.w+12,8) }
-
-	// draw obstacles
-	for(const o of level.obstacles){ ctx.fillStyle = '#e74c3c'; ctx.fillRect(o.x,o.y,o.w,o.h); drawSpikes(o.x,o.y,o.w,o.h) }
-
-	// draw enemies
-	for(const e of level.enemies){ drawEnemy(e.x, e.y, e.dir) }
-
-	// draw goal
-	drawGoal()
-
-	// draw player
-	drawPlayer(player.x, player.y)
-
-	ctx.restore()
+	updateScene()
+	renderer.render(scene, camera)
 }
 
 function drawSpikes(x,y,w,h){
