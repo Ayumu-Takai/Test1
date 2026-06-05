@@ -16,6 +16,21 @@ const retryBtn = document.getElementById('retry-btn')
 
 const GRAVITY = 0.8
 
+const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+function playJumpSound(){
+	if(audioContext.state === 'suspended') audioContext.resume()
+	const osc = audioContext.createOscillator()
+	const gain = audioContext.createGain()
+	osc.type = 'triangle'
+	osc.frequency.value = 320
+	gain.gain.value = 0.15
+	osc.connect(gain)
+	gain.connect(audioContext.destination)
+	osc.start()
+	osc.stop(audioContext.currentTime + 0.12)
+	gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.12)
+}
+
 let level = {
 	width: 3000,
 	platforms: [],
@@ -123,7 +138,11 @@ function update(){
 	else if(right) player.vx = player.speed
 	else player.vx = 0
 
-	if(up && player.onGround){ player.vy = -player.jump; player.onGround=false }
+	if(up && player.onGround){
+		player.vy = -player.jump
+		player.onGround = false
+		playJumpSound()
+	}
 
 	// gravity
 	player.vy += GRAVITY
