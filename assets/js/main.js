@@ -30,7 +30,7 @@ let playerMesh = null
 let goalMesh = null
 let materials = null
 let lastTime = performance.now()
-let timeLeft = 20
+let timeLeft = 40
 let lives = 5
 let gameOver = false
 
@@ -290,7 +290,7 @@ async function startBGM(){
 
 	// Always use the built-in Mario-style synth BGM
 	scheduleBGM()
-	bgmIntervalId = setInterval(scheduleBGM, 16000)
+	bgmIntervalId = setInterval(scheduleBGM, 9000)
 }
 
 function playVictoryBGM(){
@@ -313,13 +313,7 @@ function playVictoryBGM(){
 	playBGMNote(start + offset, 1318.51, 0.18, 'sine', 0.22, 0.1)
 	playBGMNote(start + offset + 0.18, 1174.66, 0.2, 'sine', 0.18, -0.1)
 
-	// resume previous BGM after victory
-	const resumeAfter = offset + 0.7
-	setTimeout(()=>{
-		// restart BGM (external preferred)
-		if(externalBuffer){ playExternalBGMLoop() }
-		else { scheduleBGM(); bgmIntervalId = setInterval(scheduleBGM, 20000) }
-	}, resumeAfter * 1000)
+	// victory overlay only; normal loop continues
 }
 
 function initAudio(){
@@ -480,7 +474,7 @@ function reset(fullReset = false){
 		player.coins = 0
 		buildLevel()
 	}
-	player.x = 60; player.y = 360; player.vx=0; player.vy=0; won=false; wonTime=0; timeLeft = 20; goalScreenEl.style.display='none'
+	player.x = 60; player.y = 360; player.vx=0; player.vy=0; won=false; wonTime=0; timeLeft = 40; goalScreenEl.style.display='none'
 	player.fallingToGoal = false
 	gameOver = false
 	updateStatus()
