@@ -71,7 +71,7 @@ const audioContext = new (window.AudioContext || window.webkitAudioContext)()
 const bgmGain = audioContext.createGain()
 let bgmStarted = false
 let bgmIntervalId = null
-bgmGain.gain.value = 0.12
+bgmGain.gain.value = 0.35
 bgmGain.connect(audioContext.destination)
 
 function playBGMNote(startTime, freq, duration, type='triangle', volume=0.05, pan=0){
@@ -98,15 +98,17 @@ function scheduleBGM(){
 	const notes = [
 		{freq:659.25, dur:0.16}, {freq:659.25, dur:0.16}, {freq:659.25, dur:0.16}, {freq:523.25, dur:0.16},
 		{freq:659.25, dur:0.16}, {freq:783.99, dur:0.32}, {freq:392.00, dur:0.32},
-		{freq:523.25, dur:0.16}, {freq:392.00, dur:0.16}, {freq:330.00, dur:0.16}, {freq:440.00, dur:0.16},
-		{freq:494.00, dur:0.16}, {freq:466.16, dur:0.16}, {freq:440.00, dur:0.16},
+		{freq:523.25, dur:0.16}, {freq:392.00, dur:0.16}, {freq:329.63, dur:0.16}, {freq:440.00, dur:0.16},
+		{freq:493.88, dur:0.32}, {freq:466.16, dur:0.16}, {freq:440.00, dur:0.16},
 		{freq:392.00, dur:0.16}, {freq:523.25, dur:0.16}, {freq:659.25, dur:0.16}, {freq:783.99, dur:0.16},
 		{freq:880.00, dur:0.16}, {freq:698.46, dur:0.16}, {freq:783.99, dur:0.16}, {freq:659.25, dur:0.16},
-		{freq:523.25, dur:0.16}, {freq:587.33, dur:0.16}, {freq:494.00, dur:0.32}
+		{freq:523.25, dur:0.16}, {freq:587.33, dur:0.16}, {freq:493.88, dur:0.32},
+		{freq:523.25, dur:0.16}, {freq:659.25, dur:0.16}, {freq:783.99, dur:0.16}, {freq:880.00, dur:0.16},
+		{freq:987.77, dur:0.24}, {freq:1046.50, dur:0.24}, {freq:880.00, dur:0.32}
 	]
 	let offset = 0
 	for(const note of notes){
-		playBGMNote(start + offset, note.freq, note.dur, 'triangle', 0.08, 0.18)
+		playBGMNote(start + offset, note.freq, note.dur, 'triangle', 0.18, 0.18)
 		offset += note.dur
 	}
 	const bassNotes = [
@@ -115,7 +117,7 @@ function scheduleBGM(){
 	]
 	offset = 0
 	for(const note of bassNotes){
-		playBGMNote(start + offset, note.freq, note.dur, 'square', 0.045, -0.2)
+		playBGMNote(start + offset, note.freq, note.dur, 'square', 0.10, -0.2)
 		offset += note.dur
 	}
 }
@@ -125,7 +127,7 @@ function startBGM(){
 	bgmStarted = true
 	if(audioContext.state === 'suspended') audioContext.resume()
 	scheduleBGM()
-	bgmIntervalId = setInterval(scheduleBGM, 4320)
+	bgmIntervalId = setInterval(scheduleBGM, 6200)
 }
 
 function initAudio(){
