@@ -1,9 +1,7 @@
-import * as THREE from './three.module.js'
-
 const canvas = document.getElementById('game')
+const ctx = canvas.getContext('2d')
 const W = canvas.width, H = canvas.height
-const useThree = true
-const ctx = null
+const useThree = false
 
 let keys = {}
 document.addEventListener('keydown', e=>{keys[e.key]=true})
