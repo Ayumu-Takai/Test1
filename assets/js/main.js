@@ -113,33 +113,85 @@ function playBGMNote(startTime, freq, duration, type='sine', volume=0.05, pan=0)
 	osc2.stop(startTime + duration + 0.05)
 }
 
+// Smooth evolving pad for ambient background
+function playPad(startTime, duration, baseFreq=220, volume=0.08, pan=0){
+	const oscA = audioContext.createOscillator()
+	const oscB = audioContext.createOscillator()
+	const oscC = audioContext.createOscillator()
+	const filter = audioContext.createBiquadFilter()
+	const gain = audioContext.createGain()
+	const panner = audioContext.createStereoPanner()
+
+	oscA.type = 'sine'
+	oscB.type = 'sawtooth'
+	oscC.type = 'sine'
+	oscA.frequency.value = baseFreq
+	oscB.frequency.value = baseFreq * 2.001
+	oscC.frequency.value = baseFreq * 0.5
+	oscB.detune.value = 6
+	oscC.detune.value = -4
+
+	// gentle lowpass that evolves
+	filter.type = 'lowpass'
+	filter.frequency.setValueAtTime(800, startTime)
+	filter.frequency.linearRampToValueAtTime(1600, startTime + duration * 0.5)
+	filter.frequency.linearRampToValueAtTime(700, startTime + duration)
+	filter.Q.value = 0.8
+
+	// slow LFO on detune for movement
+	const lfo = audioContext.createOscillator()
+	const lfoGain = audioContext.createGain()
+	lfo.type = 'sine'
+	lfo.frequency.value = 0.05
+	lfoGain.gain.value = 6
+	lfo.connect(lfoGain)
+	lfoGain.connect(oscA.detune)
+
+	// smooth pad envelope
+	gain.gain.setValueAtTime(0.0001, startTime)
+	gain.gain.linearRampToValueAtTime(volume, startTime + 0.8)
+	gain.gain.setValueAtTime(volume * 0.95, startTime + duration - 0.8)
+	gain.gain.linearRampToValueAtTime(0.0001, startTime + duration)
+
+	panner.pan.value = pan
+
+	oscA.connect(filter)
+	oscB.connect(filter)
+	oscC.connect(filter)
+	filter.connect(gain)
+	gain.connect(panner)
+	panner.connect(bgmGain)
+
+	lfo.start(startTime)
+	oscA.start(startTime)
+	oscB.start(startTime)
+	oscC.start(startTime)
+	oscA.stop(startTime + duration + 0.1)
+	oscB.stop(startTime + duration + 0.1)
+	oscC.stop(startTime + duration + 0.1)
+	lfo.stop(startTime + duration + 0.1)
+}
+
 function scheduleBGM(){
 	if(audioContext.state === 'suspended') return
 	const start = audioContext.currentTime + 0.05
-	const notes = [
-		{freq:659.25, dur:0.16}, {freq:659.25, dur:0.16}, {freq:659.25, dur:0.16}, {freq:523.25, dur:0.16},
-		{freq:659.25, dur:0.16}, {freq:783.99, dur:0.32}, {freq:392.00, dur:0.32},
-		{freq:523.25, dur:0.16}, {freq:392.00, dur:0.16}, {freq:329.63, dur:0.16}, {freq:440.00, dur:0.16},
-		{freq:493.88, dur:0.32}, {freq:466.16, dur:0.16}, {freq:440.00, dur:0.16},
-		{freq:392.00, dur:0.16}, {freq:523.25, dur:0.16}, {freq:659.25, dur:0.16}, {freq:783.99, dur:0.16},
-		{freq:880.00, dur:0.16}, {freq:698.46, dur:0.16}, {freq:783.99, dur:0.16}, {freq:659.25, dur:0.16},
-		{freq:523.25, dur:0.16}, {freq:587.33, dur:0.16}, {freq:493.88, dur:0.32},
-		{freq:523.25, dur:0.16}, {freq:659.25, dur:0.16}, {freq:783.99, dur:0.16}, {freq:880.00, dur:0.16},
-		{freq:987.77, dur:0.24}, {freq:1046.50, dur:0.24}, {freq:880.00, dur:0.32}
-	]
-	let offset = 0
-	for(const note of notes){
-		playBGMNote(start + offset, note.freq, note.dur, 'triangle', 0.18, 0.18)
-		offset += note.dur
+	const total = 20.0 // 20 seconds loop
+
+	// Main evolving pad spanning the whole loop
+	playPad(start, total, 110, 0.12, -0.1)
+	playPad(start, total, 176, 0.09, 0.12)
+
+	// Sparse arpeggio for interest (gentle)
+	const arpeggio = [220, 277.18, 329.63, 392.00, 440.00, 349.23, 293.66, 246.94]
+	for(let i=0;i<arpeggio.length;i++){
+		const t = (i / arpeggio.length) * total
+		playBGMNote(start + t, arpeggio[i], 0.6, 'sine', 0.08, (i % 2 ? -0.15 : 0.15))
 	}
-	const bassNotes = [
-		{freq:164.81, dur:0.32}, {freq:164.81, dur:0.32}, {freq:164.81, dur:0.32}, {freq:130.81, dur:0.32},
-		{freq:164.81, dur:0.32}, {freq:196.00, dur:0.64}, {freq:98.00, dur:0.64}
-	]
-	offset = 0
-	for(const note of bassNotes){
-		playBGMNote(start + offset, note.freq, note.dur, 'square', 0.10, -0.2)
-		offset += note.dur
+
+	// Gentle bass pulses
+	for(let i=0;i<6;i++){
+		const t = (i / 6) * total
+		playBGMNote(start + t, 82.41, 1.2, 'sine', 0.06, -0.2)
 	}
 }
 
@@ -148,7 +200,7 @@ function startBGM(){
 	bgmStarted = true
 	if(audioContext.state === 'suspended') audioContext.resume()
 	scheduleBGM()
-	bgmIntervalId = setInterval(scheduleBGM, 6200)
+	bgmIntervalId = setInterval(scheduleBGM, 20000)
 }
 
 function initAudio(){
