@@ -74,22 +74,43 @@ let bgmIntervalId = null
 bgmGain.gain.value = 0.35
 bgmGain.connect(audioContext.destination)
 
-function playBGMNote(startTime, freq, duration, type='triangle', volume=0.05, pan=0){
-	const osc = audioContext.createOscillator()
-	const gain = audioContext.createGain()	
-	osc.type = type
-	osc.frequency.value = freq
-	gain.gain.setValueAtTime(0.0, startTime)
-	gain.gain.linearRampToValueAtTime(volume, startTime + 0.02)
-	gain.gain.setValueAtTime(volume, startTime + duration - 0.04)
-	gain.gain.linearRampToValueAtTime(0.001, startTime + duration)
+function playBGMNote(startTime, freq, duration, type='sine', volume=0.05, pan=0){
+	// Create a smoother, warmer voice by combining two oscillators and a gentle low-pass filter
+	const osc1 = audioContext.createOscillator()
+	const osc2 = audioContext.createOscillator()
+	const filter = audioContext.createBiquadFilter()
+	const gain = audioContext.createGain()
 	const panner = audioContext.createStereoPanner()
+
+	osc1.type = 'sine'
+	osc2.type = 'sawtooth'
+	osc1.frequency.value = freq
+	// slight detune for warmth
+	osc2.frequency.value = freq * 0.997
+	osc2.detune.value = -8
+
+	filter.type = 'lowpass'
+	filter.frequency.value = Math.min(1400, Math.max(600, freq * 2))
+	filter.Q.value = 0.7
+
+	// smoother envelope: slightly longer attack and release
+	gain.gain.setValueAtTime(0.0001, startTime)
+	gain.gain.linearRampToValueAtTime(volume, startTime + 0.06)
+	gain.gain.setValueAtTime(volume * 0.95, startTime + duration - 0.06)
+	gain.gain.linearRampToValueAtTime(0.0001, startTime + duration)
+
 	panner.pan.value = pan
-	osc.connect(gain)
+
+	osc1.connect(filter)
+	osc2.connect(filter)
+	filter.connect(gain)
 	gain.connect(panner)
 	panner.connect(bgmGain)
-	osc.start(startTime)
-	osc.stop(startTime + duration + 0.02)
+
+	osc1.start(startTime)
+	osc2.start(startTime)
+	osc1.stop(startTime + duration + 0.05)
+	osc2.stop(startTime + duration + 0.05)
 }
 
 function scheduleBGM(){
