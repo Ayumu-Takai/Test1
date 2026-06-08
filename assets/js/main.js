@@ -25,6 +25,7 @@ const platformMeshes = []
 const pipeMeshes = []
 const obstacleMeshes = []
 const enemyMeshes = []
+const coinMeshes = []
 let playerMesh = null
 let goalMesh = null
 let materials = null
@@ -51,7 +52,8 @@ if(useThree){
 		player: new THREE.MeshBasicMaterial({color: 0xff6b6b}),
 		goalPole: new THREE.MeshBasicMaterial({color: 0x8b4513}),
 		goalFlag: new THREE.MeshBasicMaterial({color: 0xffcc00}),
-		goalAccent: new THREE.MeshBasicMaterial({color: 0xffd700})
+		goalAccent: new THREE.MeshBasicMaterial({color: 0xffd700}),
+		coin: new THREE.MeshBasicMaterial({color: 0xffd700})
 	}
 
 	worldGroup = new THREE.Group()
@@ -135,29 +137,26 @@ async function attemptLoadExternalBGM(){
 	return false
 }
 
-function playBGMNote(startTime, freq, duration, type='sine', volume=0.05, pan=0){
-	// Create a smoother, warmer voice by combining two oscillators and a gentle low-pass filter
+function playBGMNote(startTime, freq, duration, type='square', volume=0.08, pan=0){
 	const osc1 = audioContext.createOscillator()
 	const osc2 = audioContext.createOscillator()
 	const filter = audioContext.createBiquadFilter()
 	const gain = audioContext.createGain()
 	const panner = audioContext.createStereoPanner()
 
-	osc1.type = 'sine'
-	osc2.type = 'sawtooth'
+	osc1.type = type
+	osc2.type = type
 	osc1.frequency.value = freq
-	// slight detune for warmth
-	osc2.frequency.value = freq * 0.997
-	osc2.detune.value = -8
+	osc2.frequency.value = freq * 0.998
+	osc2.detune.value = -10
 
 	filter.type = 'lowpass'
-	filter.frequency.value = Math.min(1400, Math.max(600, freq * 2))
-	filter.Q.value = 0.7
+	filter.frequency.value = 1200
+	filter.Q.value = 1.0
 
-	// smoother envelope: slightly longer attack and release
 	gain.gain.setValueAtTime(0.0001, startTime)
-	gain.gain.linearRampToValueAtTime(volume, startTime + 0.06)
-	gain.gain.setValueAtTime(volume * 0.95, startTime + duration - 0.06)
+	gain.gain.linearRampToValueAtTime(volume, startTime + 0.01)
+	gain.gain.setValueAtTime(volume * 0.8, startTime + duration - 0.03)
 	gain.gain.linearRampToValueAtTime(0.0001, startTime + duration)
 
 	panner.pan.value = pan
@@ -236,23 +235,39 @@ function playPad(startTime, duration, baseFreq=220, volume=0.08, pan=0){
 function scheduleBGM(){
 	if(audioContext.state === 'suspended') return
 	const start = audioContext.currentTime + 0.05
-	const total = 20.0 // 20 seconds loop
 
-	// Main evolving pad spanning the whole loop
-	playPad(start, total, 110, 0.12, -0.1)
-	playPad(start, total, 176, 0.09, 0.12)
+	const melody = [
+		[659.25, 0.16], [523.25, 0.16], [659.25, 0.16], [783.99, 0.48],
+		[0, 0.12], [391.99, 0.16], [523.25, 0.16], [0, 0.12],
+		[392.00, 0.16], [0, 0.12], [329.63, 0.16], [0, 0.12],
+		[261.63, 0.16], [0, 0.12], [329.63, 0.16], [0.24]
+	]
 
-	// Sparse arpeggio for interest (gentle)
-	const arpeggio = [220, 277.18, 329.63, 392.00, 440.00, 349.23, 293.66, 246.94]
-	for(let i=0;i<arpeggio.length;i++){
-		const t = (i / arpeggio.length) * total
-		playBGMNote(start + t, arpeggio[i], 0.6, 'sine', 0.08, (i % 2 ? -0.15 : 0.15))
+	let offset = 0
+	for(const [freq, dur] of melody){
+		if(freq > 0) playBGMNote(start + offset, freq, dur, 'square', 0.12, (offset % 0.4) - 0.2)
+		offset += dur
 	}
 
-	// Gentle bass pulses
-	for(let i=0;i<6;i++){
-		const t = (i / 6) * total
-		playBGMNote(start + t, 82.41, 1.2, 'sine', 0.06, -0.2)
+	const bass = [
+		[130.81, 0.4], [130.81, 0.4], [130.81, 0.4], [0, 0.2],
+		[164.81, 0.4], [164.81, 0.4], [164.81, 0.4], [0, 0.2],
+		[196.00, 0.4], [196.00, 0.4], [196.00, 0.4], [0, 0.2]
+	]
+
+	offset = 0
+	for(const [freq, dur] of bass){
+		if(freq > 0) playBGMNote(start + offset, freq, dur, 'square', 0.06, -0.25)
+		offset += dur
+	}
+
+	const flourishes = [
+		[523.25, 0.1], [587.33, 0.1], [659.25, 0.1], [783.99, 0.24]
+	]
+	offset = 8.5
+	for(const [freq, dur] of flourishes){
+		playBGMNote(start + offset, freq, dur, 'square', 0.07, 0.2)
+		offset += dur
 	}
 }
 
@@ -261,16 +276,9 @@ async function startBGM(){
 	bgmStarted = true
 	if(audioContext.state === 'suspended') await audioContext.resume()
 
-	// Try external BGM first; fallback to synth if unavailable
-	const gotExternal = await attemptLoadExternalBGM()
-	if(gotExternal){
-		playExternalBGMLoop()
-		return
-	}
-
-	// fallback: start synthesized BGM
+	// Always use the built-in Mario-style synth BGM
 	scheduleBGM()
-	bgmIntervalId = setInterval(scheduleBGM, 20000)
+	bgmIntervalId = setInterval(scheduleBGM, 16000)
 }
 
 function playVictoryBGM(){
@@ -333,48 +341,93 @@ function playJumpSound(){
 }
 
 let level = {
-	width: 3000,
+	width: 9000,
 	platforms: [],
 	pipes: [],
 	obstacles: [],
 	enemies: [],
-	goal: {x: 2700, y: 80, w: 40, h: 340}
+	coins: [],
+	goal: {x: 8700, y: 80, w: 40, h: 340}
 }
 
 function buildLevel(){
 	level.platforms = []
-	// ground
-	level.platforms.push({x:0,y:420,w:level.width,h:60})
-	// some platforms
-	level.platforms.push({x:300,y:340,w:140,h:20})
-	level.platforms.push({x:520,y:280,w:120,h:20})
-	level.platforms.push({x:700,y:220,w:100,h:20})
-	level.platforms.push({x:980,y:300,w:160,h:20})
-	level.platforms.push({x:1300,y:360,w:200,h:20})
-	level.platforms.push({x:1650,y:300,w:140,h:20})
-	level.platforms.push({x:2000,y:340,w:120,h:20})
-	level.platforms.push({x:2350,y:280,w:140,h:20})
+	// ground segments with cliffs/gaps
+	level.platforms.push({x:0,y:420,w:800,h:60})
+	level.platforms.push({x:950,y:420,w:700,h:60})
+	level.platforms.push({x:1750,y:420,w:900,h:60})
+	level.platforms.push({x:2800,y:420,w:650,h:60})
+	level.platforms.push({x:3600,y:420,w:800,h:60})
+	level.platforms.push({x:4550,y:420,w:600,h:60})
+	level.platforms.push({x:5250,y:420,w:850,h:60})
+	level.platforms.push({x:6200,y:420,w:700,h:60})
+	level.platforms.push({x:7050,y:420,w:900,h:60})
+	level.platforms.push({x:8150,y:420,w:700,h:60})
+
+	// raised platforms and cliffs
+	level.platforms.push({x:600,y:360,w:140,h:20})
+	level.platforms.push({x:920,y:300,w:120,h:20})
+	level.platforms.push({x:1250,y:260,w:100,h:20})
+	level.platforms.push({x:1580,y:320,w:180,h:20})
+	level.platforms.push({x:2100,y:280,w:120,h:20})
+	level.platforms.push({x:2450,y:220,w:140,h:20})
+	level.platforms.push({x:3000,y:340,w:160,h:20})
+	level.platforms.push({x:3450,y:280,w:100,h:20})
+	level.platforms.push({x:3900,y:240,w:120,h:20})
+	level.platforms.push({x:4300,y:300,w:140,h:20})
+	level.platforms.push({x:4700,y:260,w:100,h:20})
+	level.platforms.push({x:5100,y:320,w:180,h:20})
+	level.platforms.push({x:5600,y:280,w:120,h:20})
+	level.platforms.push({x:6000,y:240,w:140,h:20})
+	level.platforms.push({x:6500,y:300,w:160,h:20})
+	level.platforms.push({x:7000,y:260,w:120,h:20})
+	level.platforms.push({x:7450,y:320,w:140,h:20})
+	level.platforms.push({x:7800,y:280,w:120,h:20})
+	level.platforms.push({x:8200,y:240,w:140,h:20})
 
 	// pipes (as tall platforms with green)
 	level.pipes = [
 		{x:420,y:360,w:60,h:60},
-		{x:1500,y:360,w:60,h:100},
-		{x:2200,y:360,w:60,h:80}
+		{x:1600,y:360,w:60,h:100},
+		{x:2900,y:360,w:60,h:80},
+		{x:5400,y:360,w:60,h:90},
+		{x:7600,y:360,w:60,h:90}
 	]
 
-	// obstacles (spikes)
+	// obstacles (spikes and cliff edges)
 	level.obstacles = [
 		{x:850,y:400,w:40,h:20},
 		{x:1080,y:400,w:40,h:20},
-		{x:1800,y:400,w:40,h:20}
+		{x:1850,y:400,w:40,h:20},
+		{x:3250,y:400,w:40,h:20},
+		{x:5550,y:400,w:40,h:20},
+		{x:6950,y:400,w:40,h:20}
 	]
 
-	// enemies (koopa-like)
+	// enemies (ground walking Goomba-like)
 	level.enemies = [
-		{x:500,y:300,w:30,h:30,vx:-2,dir:-1},
-		{x:1200,y:320,w:30,h:30,vx:2.5,dir:1},
-		{x:1900,y:280,w:30,h:30,vx:-2.2,dir:-1}
+		{x:700,y:390,w:28,h:24,vx:2,dir:1,minX:650,maxX:940},
+		{x:1800,y:390,w:28,h:24,vx:-2.2,dir:-1,minX:1750,maxX:2080},
+		{x:2550,y:390,w:28,h:24,vx:2.5,dir:1,minX:2500,maxX:2680},
+		{x:3700,y:390,w:28,h:24,vx:-2,dir:-1,minX:3600,maxX:3950},
+		{x:4850,y:390,w:28,h:24,vx:2,dir:1,minX:4800,maxX:5000},
+		{x:6400,y:390,w:28,h:24,vx:-2.3,dir:-1,minX:6350,maxX:6650},
+		{x:7900,y:390,w:28,h:24,vx:2.3,dir:1,minX:7850,maxX:8180}
 	]
+
+	level.coins = [
+		{x:680,y:330,w:16,h:16},
+		{x:960,y:260,w:16,h:16},
+		{x:1270,y:220,w:16,h:16},
+		{x:2100,y:240,w:16,h:16},
+		{x:3040,y:300,w:16,h:16},
+		{x:4720,y:220,w:16,h:16},
+		{x:5560,y:240,w:16,h:16},
+		{x:6500,y:260,w:16,h:16},
+		{x:7830,y:240,w:16,h:16},
+		{x:8550,y:360,w:16,h:16}
+	]
+
 	buildScene()
 }
 
@@ -382,7 +435,8 @@ const player = {
 	x: 60, y: 360, w: 28, h: 40,
 	vx:0, vy:0,
 	speed:5.2, jump:18, onGround:false,
-	fallingToGoal: false, fallTarget: 0
+	fallingToGoal: false, fallTarget: 0,
+	coins: 0
 }
 
 let cameraX = 0
@@ -390,7 +444,7 @@ let won = false
 let wonTime = 0
 
 function reset(){
-	player.x = 60; player.y = 360; player.vx=0; player.vy=0; won=false; wonTime=0; statusEl.textContent=''; goalScreenEl.style.display='none'
+	player.x = 60; player.y = 360; player.vx=0; player.vy=0; won=false; wonTime=0; player.coins = 0; statusEl.textContent='COINS: 0'; goalScreenEl.style.display='none'
 	player.fallingToGoal = false
 }
 
@@ -458,14 +512,28 @@ function update(){
 	player.onGround = false
 	resolveCollisions('y')
 
+	// cliff fall reset
+	if(player.y > H + 120){ reset(); return }
+
 	// obstacles
-	for(const o of level.obstacles){ if(rectsOverlap(player,o)){ reset(); break } }
+	for(const o of level.obstacles){ if(rectsOverlap(player,o)){ reset(); return } }
+
+	// coins
+	for(let i = level.coins.length - 1; i >= 0; i--){
+		const c = level.coins[i]
+		if(rectsOverlap(player,c)){
+			level.coins.splice(i,1)
+			if(worldGroup && coinMeshes[i]){ worldGroup.remove(coinMeshes[i]); coinMeshes.splice(i,1) }
+			player.coins += 1
+			statusEl.textContent = `COINS: ${player.coins}`
+		}
+	}
 
 	// enemies
 	for(const e of level.enemies){ 
 		e.x += e.vx
-		if(e.x < 0 || e.x > level.width) e.vx *= -1
-		if(rectsOverlap(player,e)){ reset(); break }
+		if(e.x < e.minX || e.x + e.w > e.maxX){ e.vx *= -1; e.dir = e.vx > 0 ? 1 : -1 }
+		if(rectsOverlap(player,e)){ reset(); return }
 	}
 
 	// goal - flag collision (x: 2680-2760, y: 80-420)
@@ -509,6 +577,7 @@ function buildScene(){
 	pipeMeshes.length = 0
 	obstacleMeshes.length = 0
 	enemyMeshes.length = 0
+	coinMeshes.length = 0
 
 	const groundMesh = createMesh(new THREE.PlaneGeometry(level.width, 60), materials.ground)
 	groundMesh.position.set(level.width / 2, 450, 0)
@@ -536,6 +605,13 @@ function buildScene(){
 		const mesh = createMesh(new THREE.PlaneGeometry(o.w, o.h), materials.obstacle)
 		mesh.position.set(o.x + o.w / 2, o.y + o.h / 2, 0)
 		obstacleMeshes.push(mesh)
+		worldGroup.add(mesh)
+	}
+
+	for(const c of level.coins){
+		const mesh = createMesh(new THREE.CircleGeometry(8, 16), materials.coin)
+		mesh.position.set(c.x + c.w / 2, c.y + c.h / 2, 0)
+		coinMeshes.push(mesh)
 		worldGroup.add(mesh)
 	}
 
@@ -568,6 +644,9 @@ function buildScene(){
 function updateScene(){
 	if(!useThree) return
 	playerMesh.position.set(player.x + player.w / 2, player.y + player.h / 2, 0)
+	for(let i = 0; i < level.coins.length; i++){
+		coinMeshes[i].position.set(level.coins[i].x + level.coins[i].w / 2, level.coins[i].y + level.coins[i].h / 2, 0)
+	}
 	for(let i = 0; i < level.enemies.length; i++){
 		enemyMeshes[i].position.set(level.enemies[i].x + level.enemies[i].w / 2, level.enemies[i].y + level.enemies[i].h / 2, 0)
 	}
@@ -594,6 +673,7 @@ function draw(){
 	for(const p of level.platforms){ ctx.fillStyle = '#654321'; ctx.fillRect(p.x,p.y,p.w,p.h) }
 	for(const p of level.pipes){ ctx.fillStyle = '#2ecc71'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='#1e7f3b'; ctx.fillRect(p.x-6,p.y-8,p.w+12,8) }
 	for(const o of level.obstacles){ ctx.fillStyle = '#e74c3c'; ctx.fillRect(o.x,o.y,o.w,o.h); drawSpikes(o.x,o.y,o.w,o.h) }
+	for(const c of level.coins){ ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(c.x + c.w/2, c.y + c.h/2, c.w/2, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle='#cc9900'; ctx.stroke() }
 	for(const e of level.enemies){ drawEnemy(e.x, e.y, e.dir) }
 	drawGoal()
 	drawPlayer(player.x, player.y)
@@ -635,17 +715,17 @@ function drawGoal(){
 }
 
 function drawEnemy(ex, ey, dir){
-	// shell (Koopa-like)
-	ctx.fillStyle = '#27ae60'
-	ctx.fillRect(ex, ey, 30, 20)
-	ctx.fillStyle = '#229954'; ctx.fillRect(ex+2, ey+2, 10, 12); ctx.fillRect(ex+18, ey+2, 10, 12)
-	// head
-	ctx.fillStyle = '#1abc9c'; ctx.beginPath(); ctx.arc(ex+15, ey-6, 8, 0, Math.PI*2); ctx.fill()
+	// Goomba-like body
+	ctx.fillStyle = '#8b4513'
+	ctx.fillRect(ex, ey, 28, 18)
+	ctx.fillStyle = '#a0522d'; ctx.fillRect(ex+2, ey+2, 10, 12); ctx.fillRect(ex+16, ey+2, 10, 12)
+	// feet
+	ctx.fillStyle = '#000'; ctx.fillRect(ex+2, ey+18, 8, 4); ctx.fillRect(ex+18, ey+18, 8, 4)
 	// eyes
-	ctx.fillStyle = '#000'; ctx.fillRect(ex+12, ey-8, 2, 2); ctx.fillRect(ex+18, ey-8, 2, 2)
-	// direction indicator
-	if(dir > 0) { ctx.fillStyle = '#fff'; ctx.fillRect(ex+26, ey+6, 4, 2) }
-	else { ctx.fillStyle = '#fff'; ctx.fillRect(ex, ey+6, 4, 2) }
+	ctx.fillStyle = '#fff'; ctx.fillRect(ex+6, ey+4, 5, 5); ctx.fillRect(ex+16, ey+4, 5, 5)
+	ctx.fillStyle = '#000'; ctx.fillRect(ex+8, ey+6, 2, 2); ctx.fillRect(ex+18, ey+6, 2, 2)
+	// eyebrows
+	ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(ex+6, ey+4); ctx.lineTo(ex+10, ey+2); ctx.moveTo(ex+18, ey+4); ctx.lineTo(ex+22, ey+2); ctx.stroke()
 }
 
 function loop(){ update(); draw(); requestAnimationFrame(loop) }
