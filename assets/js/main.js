@@ -74,6 +74,67 @@ let bgmIntervalId = null
 bgmGain.gain.value = 0.35
 bgmGain.connect(audioContext.destination)
 
+// External BGM support
+let externalBuffer = null
+let externalSource = null
+let useExternalBGM = false
+
+async function loadExternalBGM(url){
+	try{
+		statusEl.textContent = '外部BGMを読み込み中…'
+		const res = await fetch(url)
+		if(!res.ok) throw new Error('fetch failed')
+		const ab = await res.arrayBuffer()
+		const decoded = await audioContext.decodeAudioData(ab)
+		externalBuffer = decoded
+		statusEl.textContent = '外部BGM準備完了'
+		return true
+	}catch(e){
+		console.warn('外部BGM読み込み失敗', e)
+		statusEl.textContent = ''
+		return false
+	}
+}
+
+function playExternalBGMLoop(){
+	if(!externalBuffer) return false
+	stopBGM()
+	externalSource = audioContext.createBufferSource()
+	externalSource.buffer = externalBuffer
+	externalSource.loop = true
+	externalSource.connect(bgmGain)
+	if(audioContext.state === 'suspended') audioContext.resume()
+	externalSource.start()
+	useExternalBGM = true
+	return true
+}
+
+function stopExternalBGM(){
+	try{ if(externalSource){ externalSource.stop(); externalSource.disconnect() } }catch(e){}
+	externalSource = null
+	useExternalBGM = false
+}
+
+function stopBGM(){
+	if(bgmIntervalId) { clearInterval(bgmIntervalId); bgmIntervalId = null }
+	stopExternalBGM()
+}
+
+// Try a small list of free example URLs (fallback to synth if none work)
+async function attemptLoadExternalBGM(){
+	if(externalBuffer) return true
+	const candidates = [
+		'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+		'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
+	]
+	for(const url of candidates){
+		// try load (do not throw on first failure)
+		const ok = await loadExternalBGM(url)
+		if(ok) return true
+	}
+	return false
+}
+
 function playBGMNote(startTime, freq, duration, type='sine', volume=0.05, pan=0){
 	// Create a smoother, warmer voice by combining two oscillators and a gentle low-pass filter
 	const osc1 = audioContext.createOscillator()
@@ -195,12 +256,53 @@ function scheduleBGM(){
 	}
 }
 
-function startBGM(){
+async function startBGM(){
 	if(bgmStarted) return
 	bgmStarted = true
-	if(audioContext.state === 'suspended') audioContext.resume()
+	if(audioContext.state === 'suspended') await audioContext.resume()
+
+	// Try external BGM first; fallback to synth if unavailable
+	const gotExternal = await attemptLoadExternalBGM()
+	if(gotExternal){
+		playExternalBGMLoop()
+		return
+	}
+
+	// fallback: start synthesized BGM
 	scheduleBGM()
 	bgmIntervalId = setInterval(scheduleBGM, 20000)
+}
+
+function playVictoryBGM(){
+	// stop current BGM while victory plays
+	stopBGM()
+	stopExternalBGM()
+	if(audioContext.state === 'suspended') audioContext.resume()
+	const start = audioContext.currentTime + 0.05
+	const chords = [
+		[523.25, 659.25, 783.99],
+		[659.25, 783.99, 987.77],
+		[783.99, 987.77, 1174.66]
+	]
+	let offset = 0
+	for(const ch of chords){
+		for(const f of ch){
+			playBGMNote(start + offset, f, 0.6, 'sine', 0.26, 0)
+		}
+		offset += 0.7
+	}
+
+	// short flourish
+	playBGMNote(start + offset, 1318.51, 0.18, 'sine', 0.22, 0.1)
+	playBGMNote(start + offset + 0.18, 1174.66, 0.2, 'sine', 0.18, -0.1)
+
+	// resume previous BGM after victory
+	const resumeAfter = offset + 0.7
+	setTimeout(()=>{
+		// restart BGM (external preferred)
+		if(externalBuffer){ playExternalBGMLoop() }
+		else { scheduleBGM(); bgmIntervalId = setInterval(scheduleBGM, 20000) }
+	}, resumeAfter * 1000)
 }
 
 function initAudio(){
@@ -368,7 +470,10 @@ function update(){
 
 	// goal - flag collision (x: 2680-2760, y: 80-420)
 	if(player.x + player.w > level.goal.x - 40 && player.x < level.goal.x + 40 && player.y < level.goal.y + level.goal.h){
-		won = true; wonTime = 0
+		if(!won){
+			won = true; wonTime = 0
+			playVictoryBGM()
+		}
 	}
 
 	// camera
