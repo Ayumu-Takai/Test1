@@ -29,6 +29,18 @@ const coinMeshes = []
 let playerMesh = null
 let goalMesh = null
 let materials = null
+let lastTime = performance.now()
+let timeLeft = 20
+let lives = 5
+let gameOver = false
+
+function updateStatus(){
+	if(gameOver){
+		statusEl.textContent = 'GAME OVER'
+		return
+	}
+	statusEl.textContent = `COINS: ${player.coins} LIVES: ${lives} TIME: ${Math.max(0, Math.ceil(timeLeft))}`
+}
 
 if(useThree){
 	renderer = new THREE.WebGLRenderer({canvas, antialias:true})
@@ -282,9 +294,6 @@ async function startBGM(){
 }
 
 function playVictoryBGM(){
-	// stop current BGM while victory plays
-	stopBGM()
-	stopExternalBGM()
 	if(audioContext.state === 'suspended') audioContext.resume()
 	const start = audioContext.currentTime + 0.05
 	const chords = [
@@ -404,16 +413,28 @@ function buildLevel(){
 		{x:6950,y:400,w:40,h:20}
 	]
 
-	// enemies (ground walking Goomba-like)
+	// enemies and hazards
 	level.enemies = [
-		{x:700,y:390,w:28,h:24,vx:2,dir:1,minX:650,maxX:940},
-		{x:1800,y:390,w:28,h:24,vx:-2.2,dir:-1,minX:1750,maxX:2080},
-		{x:2550,y:390,w:28,h:24,vx:2.5,dir:1,minX:2500,maxX:2680},
-		{x:3700,y:390,w:28,h:24,vx:-2,dir:-1,minX:3600,maxX:3950},
-		{x:4850,y:390,w:28,h:24,vx:2,dir:1,minX:4800,maxX:5000},
-		{x:6400,y:390,w:28,h:24,vx:-2.3,dir:-1,minX:6350,maxX:6650},
-		{x:7900,y:390,w:28,h:24,vx:2.3,dir:1,minX:7850,maxX:8180}
+		{x:700,y:390,w:28,h:24,vx:2,dir:1,minX:650,maxX:940,type:'goomba'},
+		{x:1800,y:390,w:28,h:24,vx:-2.2,dir:-1,minX:1750,maxX:2080,type:'goomba'},
+		{x:2550,y:390,w:28,h:24,vx:2.5,dir:1,minX:2500,maxX:2680,type:'goomba'},
+		{x:3700,y:390,w:28,h:24,vx:-2,dir:-1,minX:3600,maxX:3950,type:'goomba'},
+		{x:4850,y:390,w:28,h:24,vx:2,dir:1,minX:4800,maxX:5000,type:'goomba'},
+		{x:6400,y:390,w:28,h:24,vx:-2.3,dir:-1,minX:6350,maxX:6650,type:'goomba'},
+		{x:7900,y:390,w:28,h:24,vx:2.3,dir:1,minX:7850,maxX:8180,type:'goomba'}
 	]
+
+	level.flyingEnemies = [
+		{x:1300,y:280,w:28,h:24,vx:1.8,dir:1,minX:1250,maxX:1500,type:'flying',baseY:260,amp:28,phase:0},
+		{x:4100,y:240,w:28,h:24,vx:-2.2,dir:-1,minX:4050,maxX:4350,type:'flying',baseY:220,amp:24,phase:1.2}
+	]
+
+	level.cannons = [
+		{x:5200,y:392,w:48,h:28,dir:-1,reload:1.8,timer:1.2},
+		{x:7400,y:392,w:48,h:28,dir:1,reload:2.0,timer:0.8}
+	]
+
+	level.bullets = []
 
 	level.coins = [
 		{x:680,y:330,w:16,h:16},
@@ -443,13 +464,30 @@ let cameraX = 0
 let won = false
 let wonTime = 0
 
-function reset(){
-	player.x = 60; player.y = 360; player.vx=0; player.vy=0; won=false; wonTime=0; player.coins = 0; statusEl.textContent='COINS: 0'; goalScreenEl.style.display='none'
-	player.fallingToGoal = false
+function loseLife(){
+	lives--
+	if(lives <= 0){
+		gameOver = true
+		statusEl.textContent = 'GAME OVER'
+		return
+	}
+	reset(false)
 }
 
-restartBtn.addEventListener('click', ()=>{reset()})
-retryBtn.addEventListener('click', ()=>{reset()})
+function reset(fullReset = false){
+	if(fullReset){
+		lives = 5
+		player.coins = 0
+		buildLevel()
+	}
+	player.x = 60; player.y = 360; player.vx=0; player.vy=0; won=false; wonTime=0; timeLeft = 20; goalScreenEl.style.display='none'
+	player.fallingToGoal = false
+	gameOver = false
+	updateStatus()
+}
+
+restartBtn.addEventListener('click', ()=>{reset(true)})
+retryBtn.addEventListener('click', ()=>{reset(true)})
 
 function bindTouchButton(button, keyName){
 	const setDown = ()=>{keys[keyName] = true}
@@ -468,7 +506,9 @@ function rectsOverlap(a,b){
 	return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y
 }
 
-function update(){
+function update(dt = 1/60){
+	if(gameOver) return
+
 	if(won && !player.fallingToGoal){
 		wonTime++
 		if(wonTime > 20){
@@ -483,6 +523,14 @@ function update(){
 		player.y += player.vy
 		if(player.y >= player.fallTarget){ player.y = player.fallTarget; goalScreenEl.style.display='flex' }
 		return
+	}
+
+	if(!won){
+		timeLeft -= dt
+		if(timeLeft <= 0){
+			loseLife()
+			return
+		}
 	}
 
 	// input
@@ -513,10 +561,18 @@ function update(){
 	resolveCollisions('y')
 
 	// cliff fall reset
-	if(player.y > H + 120){ reset(); return }
+	if(player.y > H + 120){ loseLife(); return }
 
 	// obstacles
-	for(const o of level.obstacles){ if(rectsOverlap(player,o)){ reset(); return } }
+	for(const o of level.obstacles){ if(rectsOverlap(player,o)){ loseLife(); return } }
+
+	// bullets
+	for(let i = level.bullets.length - 1; i >= 0; i--){
+		const b = level.bullets[i]
+		b.x += b.vx
+		if(b.x < 0 || b.x > level.width){ level.bullets.splice(i,1); continue }
+		if(rectsOverlap(player,b)){ level.bullets.splice(i,1); loseLife(); return }
+	}
 
 	// coins
 	for(let i = level.coins.length - 1; i >= 0; i--){
@@ -525,24 +581,51 @@ function update(){
 			level.coins.splice(i,1)
 			if(worldGroup && coinMeshes[i]){ worldGroup.remove(coinMeshes[i]); coinMeshes.splice(i,1) }
 			player.coins += 1
-			statusEl.textContent = `COINS: ${player.coins}`
+			updateStatus()
 		}
 	}
 
 	// enemies
-	for(const e of level.enemies){ 
-		e.x += e.vx
-		if(e.x < e.minX || e.x + e.w > e.maxX){ e.vx *= -1; e.dir = e.vx > 0 ? 1 : -1 }
-		if(rectsOverlap(player,e)){ reset(); return }
+	for(let i = level.enemies.length - 1; i >= 0; i--){ 
+		const e = level.enemies[i]
+		if(e.type === 'goomba'){
+			e.x += e.vx
+			if(e.x < e.minX || e.x + e.w > e.maxX){ e.vx *= -1; e.dir = e.vx > 0 ? 1 : -1 }
+		} else if(e.type === 'flying'){
+			e.x += e.vx
+			if(e.x < e.minX || e.x + e.w > e.maxX){ e.vx *= -1; e.dir = e.vx > 0 ? 1 : -1 }
+			e.phase += 0.08
+			e.y = e.baseY + Math.sin(e.phase) * e.amp
+		} else if(e.type === 'cannon'){
+			e.timer -= dt
+			if(e.timer <= 0){
+				level.bullets.push({x: e.x + (e.dir > 0 ? e.w : -8), y: e.y + e.h / 2 - 3, w: 6, h: 6, vx: e.dir * 6})
+				e.timer = e.reload
+			}
+		}
+
+		if(rectsOverlap(player,e)){
+			if(e.type === 'goomba' && player.vy > 0 && player.y + player.h - 6 < e.y + 8){
+				level.enemies.splice(i,1)
+				if(worldGroup && enemyMeshes[i]){ worldGroup.remove(enemyMeshes[i]); enemyMeshes.splice(i,1) }
+				player.vy = -player.jump * 0.45
+				player.onGround = false
+				continue
+			}
+			loseLife()
+			return
+		}
 	}
 
-	// goal - flag collision (x: 2680-2760, y: 80-420)
+	// goal - flag collision
 	if(player.x + player.w > level.goal.x - 40 && player.x < level.goal.x + 40 && player.y < level.goal.y + level.goal.h){
 		if(!won){
 			won = true; wonTime = 0
 			playVictoryBGM()
 		}
 	}
+
+	updateStatus()
 
 	// camera
 	cameraX = player.x - W*0.3
@@ -674,6 +757,9 @@ function draw(){
 	for(const p of level.pipes){ ctx.fillStyle = '#2ecc71'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='#1e7f3b'; ctx.fillRect(p.x-6,p.y-8,p.w+12,8) }
 	for(const o of level.obstacles){ ctx.fillStyle = '#e74c3c'; ctx.fillRect(o.x,o.y,o.w,o.h); drawSpikes(o.x,o.y,o.w,o.h) }
 	for(const c of level.coins){ ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(c.x + c.w/2, c.y + c.h/2, c.w/2, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle='#cc9900'; ctx.stroke() }
+	for(const f of level.flyingEnemies){ drawFlyingEnemy(f.x, f.y, f.dir) }
+	for(const c of level.cannons){ drawCannon(c.x, c.y, c.dir) }
+	for(const b of level.bullets){ ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(b.x + 3, b.y + 3, 4, 0, Math.PI*2); ctx.fill() }
 	for(const e of level.enemies){ drawEnemy(e.x, e.y, e.dir) }
 	drawGoal()
 	drawPlayer(player.x, player.y)
@@ -727,9 +813,27 @@ function drawEnemy(ex, ey, dir){
 	// eyebrows
 	ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(ex+6, ey+4); ctx.lineTo(ex+10, ey+2); ctx.moveTo(ex+18, ey+4); ctx.lineTo(ex+22, ey+2); ctx.stroke()
 }
+function drawFlyingEnemy(ex, ey, dir){
+	ctx.fillStyle = '#3498db'
+	ctx.fillRect(ex, ey, 28, 20)
+	ctx.fillStyle = '#2980b9'; ctx.fillRect(ex+2, ey+6, 10, 8); ctx.fillRect(ex+16, ey+6, 10, 8)
+	ctx.fillStyle = '#fff'; ctx.fillRect(ex+6, ey+4, 5, 5); ctx.fillRect(ex+16, ey+4, 5, 5)
+	ctx.fillStyle = '#000'; ctx.fillRect(ex+8, ey+6, 2, 2); ctx.fillRect(ex+18, ey+6, 2, 2)
+}
 
-function loop(){ update(); draw(); requestAnimationFrame(loop) }
+function drawCannon(cx, cy, dir){
+	ctx.fillStyle = '#2c3e50'
+	ctx.fillRect(cx, cy, 48, 28)
+	ctx.fillStyle = '#34495e'; ctx.fillRect(cx + (dir > 0 ? 34 : -8), cy + 8, 16, 12)
+}
+function loop(timestamp){
+	const dt = (timestamp - lastTime) / 1000
+	lastTime = timestamp
+	update(dt)
+	draw()
+	requestAnimationFrame(loop)
+}
 
-buildLevel(); reset(); loop();
+buildLevel(); reset(); requestAnimationFrame(loop);
 
 
