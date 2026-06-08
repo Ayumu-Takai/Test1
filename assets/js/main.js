@@ -95,16 +95,28 @@ function playBGMNote(startTime, freq, duration, type='triangle', volume=0.05, pa
 function scheduleBGM(){
 	if(audioContext.state === 'suspended') return
 	const start = audioContext.currentTime + 0.05
-	const melody = [440, 494, 523, 523, 587, 659, 587, 523]
-	const durations = [0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24]
-	const harmony = [330, 330, 294, 294, 330, 330, 294, 294]
-	const bass = [220, 196, 165, 196, 220, 196, 165, 196]
+	const notes = [
+		{freq:659.25, dur:0.16}, {freq:659.25, dur:0.16}, {freq:659.25, dur:0.16}, {freq:523.25, dur:0.16},
+		{freq:659.25, dur:0.16}, {freq:783.99, dur:0.32}, {freq:392.00, dur:0.32},
+		{freq:523.25, dur:0.16}, {freq:392.00, dur:0.16}, {freq:330.00, dur:0.16}, {freq:440.00, dur:0.16},
+		{freq:494.00, dur:0.16}, {freq:466.16, dur:0.16}, {freq:440.00, dur:0.16},
+		{freq:392.00, dur:0.16}, {freq:523.25, dur:0.16}, {freq:659.25, dur:0.16}, {freq:783.99, dur:0.16},
+		{freq:880.00, dur:0.16}, {freq:698.46, dur:0.16}, {freq:783.99, dur:0.16}, {freq:659.25, dur:0.16},
+		{freq:523.25, dur:0.16}, {freq:587.33, dur:0.16}, {freq:494.00, dur:0.32}
+	]
 	let offset = 0
-	for(let i = 0; i < melody.length; i++){
-		playBGMNote(start + offset, melody[i], durations[i], 'triangle', 0.055, 0.25)
-		playBGMNote(start + offset, harmony[i], durations[i], 'sine', 0.03, -0.25)
-		playBGMNote(start + offset, bass[i], durations[i] * 1.9, 'square', 0.03, 0)
-		offset += durations[i]
+	for(const note of notes){
+		playBGMNote(start + offset, note.freq, note.dur, 'triangle', 0.05, 0.18)
+		offset += note.dur
+	}
+	const bassNotes = [
+		{freq:164.81, dur:0.32}, {freq:164.81, dur:0.32}, {freq:164.81, dur:0.32}, {freq:130.81, dur:0.32},
+		{freq:164.81, dur:0.32}, {freq:196.00, dur:0.64}, {freq:98.00, dur:0.64}
+	]
+	offset = 0
+	for(const note of bassNotes){
+		playBGMNote(start + offset, note.freq, note.dur, 'square', 0.025, -0.2)
+		offset += note.dur
 	}
 }
 
@@ -113,7 +125,7 @@ function startBGM(){
 	bgmStarted = true
 	if(audioContext.state === 'suspended') audioContext.resume()
 	scheduleBGM()
-	bgmIntervalId = setInterval(scheduleBGM, 1920)
+	bgmIntervalId = setInterval(scheduleBGM, 4320)
 }
 
 function initAudio(){
