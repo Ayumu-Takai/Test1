@@ -71,7 +71,7 @@ const audioContext = new (window.AudioContext || window.webkitAudioContext)()
 const bgmGain = audioContext.createGain()
 let bgmStarted = false
 let bgmIntervalId = null
-bgmGain.gain.value = 0.05
+bgmGain.gain.value = 0.12
 bgmGain.connect(audioContext.destination)
 
 function playBGMNote(startTime, freq, duration, type='triangle', volume=0.05, pan=0){
@@ -106,7 +106,7 @@ function scheduleBGM(){
 	]
 	let offset = 0
 	for(const note of notes){
-		playBGMNote(start + offset, note.freq, note.dur, 'triangle', 0.05, 0.18)
+		playBGMNote(start + offset, note.freq, note.dur, 'triangle', 0.08, 0.18)
 		offset += note.dur
 	}
 	const bassNotes = [
@@ -115,7 +115,7 @@ function scheduleBGM(){
 	]
 	offset = 0
 	for(const note of bassNotes){
-		playBGMNote(start + offset, note.freq, note.dur, 'square', 0.025, -0.2)
+		playBGMNote(start + offset, note.freq, note.dur, 'square', 0.045, -0.2)
 		offset += note.dur
 	}
 }
@@ -143,16 +143,16 @@ function playJumpSound(){
 	const osc = audioContext.createOscillator()
 	const gain = audioContext.createGain()
 	const panner = audioContext.createStereoPanner()
-	osc.type = 'square'
-	osc.frequency.value = 580
-	gain.gain.value = 0.22
+	osc.type = 'triangle'
+	osc.frequency.value = 520
+	gain.gain.value = 0.08
 	panner.pan.value = 0.15
 	osc.connect(gain)
 	gain.connect(panner)
 	panner.connect(audioContext.destination)
 	osc.start()
-	osc.stop(audioContext.currentTime + 0.22)
-	gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.22)
+	osc.stop(audioContext.currentTime + 0.18)
+	gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.18)
 }
 
 let level = {
